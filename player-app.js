@@ -36,7 +36,7 @@
     const s = Math.max(0, round ? Math.round(seconds || 0) : Math.floor(seconds || 0));
     return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
   };
-  const categoryName = type => type === 'letter' ? '情书 💌' : '故事';
+  const categoryName = type => type === 'letter' ? 'letter 💌' : '故事';
   const coverHTML = type => `<span class="${type === 'letter' ? 'mini-envelope' : 'mini-moon'}"></span>`;
   const iconHTML = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const currentDuration = () => current && Number.isFinite(audio.duration) && audio.currentSrc === new URL(current.audio,location.href).href ? audio.duration : (current?.duration || 0);
@@ -79,7 +79,7 @@
   }
   function renderLibrary() {
     const visible = filtered(); $('library-list').replaceChildren();
-    $('collection-heading').textContent = category === 'all' ? '所有内容' : categoryName(category);
+    $('collection-heading').textContent = category === 'all' ? '所有内容' : category === 'letter' ? 'letter 💌合集' : categoryName(category);
     $('collection-count').textContent = visible.length + ' 篇';
     visible.forEach(track => {
       const item = document.createElement('div'); item.setAttribute('role', 'listitem');
