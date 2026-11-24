@@ -8,6 +8,23 @@
   const mobile = matchMedia('(max-width: 760px)');
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) {}
+  const themePreference = matchMedia('(prefers-color-scheme: dark)');
+  let manualTheme = false;
+  try { manualTheme = ['light','dark'].includes(localStorage.getItem('little-castle-theme')); } catch (_) {}
+  function setTheme(theme, remember = false) {
+    const dark = theme === 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    $('theme-toggle').setAttribute('aria-pressed', String(dark));
+    $('theme-toggle').setAttribute('aria-label', dark ? '切换到日间模式' : '切换到夜间模式');
+    $('theme-toggle').title = dark ? '切换到日间模式' : '切换到夜间模式';
+    $('theme-label').textContent = dark ? '夜间' : '日间';
+    $('theme-icon').setAttribute('href', dark ? '#i-moon' : '#i-sun');
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#171a18' : '#f8f6f2';
+    if (remember) { manualTheme = true; try { localStorage.setItem('little-castle-theme', theme); } catch (_) {} }
+  }
+  setTheme(document.documentElement.dataset.theme);
+  $('theme-toggle').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true));
+  themePreference.addEventListener('change', event => { if (!manualTheme) setTheme(event.matches ? 'dark' : 'light'); });
   const positions = saved.positions && typeof saved.positions === 'object' ? saved.positions : {};
   let current = null, category = 'all', queue = tracks.map(t => t.id);
   let cueElements = [], activeCue = -1, following = true, seeking = false;
@@ -150,7 +167,7 @@
     $('now-cover').className = 'art-cover is-' + track.category; $('now-cover').innerHTML = coverHTML(track.category);
     $('scene-number').textContent = String(tracks.indexOf(track)+1).padStart(2,'0') + ' / ' + String(tracks.length).padStart(2,'0');
     $('scene').style.setProperty('--glow-one',track.palette[0]); $('scene').style.setProperty('--glow-two',track.palette[1]);
-    $('scene').style.backgroundColor = track.category === 'letter' ? '#282321' : '#1e2825';
+    $('scene').dataset.kind = track.category;
     document.title = track.title + ' · 迷湖公主的小城堡';
     renderCues(); refresh(pendingSeek,true,'auto'); updateQueueButtons(); updateLibraryState();
     audio.src = track.audio; audio.load(); audio.playbackRate = preferredSpeed; updateSpeed(); updatePlayback();
@@ -282,7 +299,8 @@
     painter.clearRect(0,0,canvasWidth,canvasHeight);
     const x0 = canvasWidth*.72, y0 = canvasHeight*.56, radius = Math.min(canvasWidth*.34,canvasHeight*.41)*(1+soundLevel*.18), angle = motion.matches ? 0 : time*.000065;
     const project = point => { const x=point[0]*Math.cos(angle)+point[2]*Math.sin(angle),z=-point[0]*Math.sin(angle)+point[2]*Math.cos(angle),y=point[1]*.76-z*.25; return [x0+x*radius,y0+y*radius,z]; };
-    const color = current?.category === 'story' ? '198,214,194' : '226,204,168';
+    const dark = document.documentElement.dataset.theme === 'dark';
+    const color = dark ? (current?.category === 'story' ? '198,214,194' : '226,204,168') : '129,100,68';
     points.map(project).forEach(([x,y,z])=>{painter.fillStyle=`rgba(${color},${.13+(z+1)*.10+soundLevel*.12})`;painter.beginPath();painter.arc(x,y,.55+(z+1)*.18,0,Math.PI*2);painter.fill();});
     for(let ring=0;ring<4;ring++){painter.beginPath();for(let i=0;i<=96;i++){const a=i/96*Math.PI*2,lat=(ring-1.5)*.3+Math.sin(a*2+ring+angle)*.08,r=Math.sqrt(1-lat*lat),[x,y]=project([Math.cos(a)*r,lat,Math.sin(a)*r]);if(i===0)painter.moveTo(x,y);else painter.lineTo(x,y);}painter.strokeStyle=`rgba(${color},${.07+soundLevel*.1})`;painter.lineWidth=.65;painter.stroke();}
   }

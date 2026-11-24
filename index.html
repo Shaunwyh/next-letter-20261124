@@ -9,6 +9,9 @@
   <meta property="og:description" content="给迷湖公主的故事与情书合集。">
   <title>迷湖公主的小城堡</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23f5f2ec'/%3E%3Cpath d='M14 48V20h7v7h7v-7h8v7h7v-7h7v28H14Zm13 0V37a5 5 0 0 1 10 0v11' fill='none' stroke='%238f7661' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script>
+    (() => { let theme; try { theme = localStorage.getItem('little-castle-theme'); } catch (_) {} document.documentElement.dataset.theme = ['light','dark'].includes(theme) ? theme : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); })();
+  </script>
   <style>
     :root { color-scheme: light; --canvas:#f8f6f2; --sidebar:#efebe4; --ink:#33322e; --muted:#969087; --accent:#99765b; --line:#d7d0c34d; --player-height:116px; --sidebar-width:256px; --spring:cubic-bezier(.22,1,.36,1); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; font-synthesis:none; }
     * { box-sizing:border-box; }
@@ -184,6 +187,61 @@
     }
     @media (max-width:350px) { .topbar { padding-left:16px; padding-right:16px; gap:9px; } .mobile-brand { font-size:9px; } h1 { font-size:17px; } .lyrics-list { padding-left:27px; padding-right:24px; } .cue { font-size:17px; } .transport-buttons { gap:17px; } .player { padding-left:17px; padding-right:17px; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
+    /* Both the listening room and its surrounding controls follow the theme. */
+    :root { --canvas:#f8f6f2; --ink:#33322e; --muted:#92897d; --line:#d7d0c34d; --panel:#eae2d6; --lyric-ink:#574a3f; --panel-secondary:#796d5e; --panel-border:#ffffff85; --closing:#a56043; }
+    :root[data-theme="dark"] { color-scheme:dark; --canvas:#171a18; --ink:#f0ebdf; --muted:#93988e; --line:#ffffff0b; --panel:#242421; --lyric-ink:#f7f1e5; --panel-secondary:#bdb8a9; --panel-border:#ffffff12; --closing:#eac0aa; }
+    body,.sidebar,.player,.scene,.filter,.library-track,.follow-toggle,.theme-toggle { transition:background-color .45s, color .45s, border-color .45s, box-shadow .45s; }
+    .topbar { gap:12px; }
+    .theme-toggle { display:flex; align-items:center; justify-content:center; gap:7px; height:35px; padding:0 11px; border:1px solid #ded6ca; border-radius:11px; background:#ffffff70; color:#8e7961; font-size:11px; flex-shrink:0; }
+    .theme-toggle .icon { width:15px; height:15px; }
+    .theme-toggle:active { transform:scale(.95); }
+    .scene { background:var(--panel); border-color:var(--panel-border); }
+    .scene::before { opacity:.15; }
+    .scene::after { background:linear-gradient(180deg,#eee5d44d,transparent 25%,transparent 75%,#dfd2bf33); }
+    .scene-canvas { opacity:.25; }
+    .scene-toolbar,.scene-hint { color:var(--panel-secondary); }
+    .scene-number { color:var(--panel-secondary); opacity:.65; }
+    .cue { color:var(--lyric-ink); opacity:.4; }
+    .cue.is-near { opacity:.64; }
+    .cue.is-active { opacity:1; }
+    .cue.is-active::before { background:#a1805f; box-shadow:0 0 10px #b9935840; }
+    .cue.closing { color:var(--closing); }
+    .note-group { border-color:#9b7e5620; background:#fff8e626; }
+    .return-current { color:#745e45; background:#f9f3e5cc; border-color:#b79b7133; }
+    :root[data-theme="dark"] .sidebar { background:linear-gradient(165deg,#202520,#1d211e); }
+    :root[data-theme="dark"] .brand-mark { color:#c6b393; background:#ac987d16; border-color:#ffffff08; }
+    :root[data-theme="dark"] .brand-name { color:#eee8dc; }
+    :root[data-theme="dark"] .section-label,:root[data-theme="dark"] .collection-heading span,:root[data-theme="dark"] .sidebar-foot { color:#848b7f; }
+    :root[data-theme="dark"] .sidebar-foot { border-color:#ffffff0a; }
+    :root[data-theme="dark"] .filter { color:#a3aa9d; }
+    :root[data-theme="dark"] .filter[aria-pressed="true"] { color:#decaa7; background:#ac967626; box-shadow:inset 0 1px 0 #ffffff05; }
+    :root[data-theme="dark"] .filter-count,:root[data-theme="dark"] .track-detail { color:#8e9487; }
+    :root[data-theme="dark"] .library-track.is-selected { background:#ffffff06; border-color:#ffffff0a; box-shadow:0 3px 12px #00000008; }
+    :root[data-theme="dark"] .header-meta,:root[data-theme="dark"] .mobile-brand { color:#899183; }
+    :root[data-theme="dark"] .header-meta .dot { background:#69715f; }
+    :root[data-theme="dark"] .theme-toggle,:root[data-theme="dark"] .follow-toggle { background:#ffffff04; border-color:#ffffff0d; color:#b4b29e; }
+    :root[data-theme="dark"] .follow-toggle[aria-pressed="true"] { background:#a7906420; color:#d1bd98; border-color:#cdb18c20; }
+    :root[data-theme="dark"] .scene[data-kind="story"] { --panel:#1c2822; }
+    :root[data-theme="dark"] .scene::before { opacity:.48; }
+    :root[data-theme="dark"] .scene::after { background:linear-gradient(180deg,#0b0b0b20,transparent 25%,transparent 75%,#0b0b0b35); }
+    :root[data-theme="dark"] .scene-canvas { opacity:.5; }
+    :root[data-theme="dark"] .cue.is-active::before { background:#dac5a2; box-shadow:0 0 10px #d4b98965; }
+    :root[data-theme="dark"] .note-group { border-color:#f1e0c718; background:#f7e8d807; }
+    :root[data-theme="dark"] .return-current { background:#343930dc; color:#e5decc; border-color:#ffffff15; }
+    :root[data-theme="dark"] .player { background:#1e231ff5; border-color:#ffffff09; box-shadow:0 -6px 20px #00000008; }
+    :root[data-theme="dark"] .now-playing-category,:root[data-theme="dark"] .time { color:#919789; }
+    :root[data-theme="dark"] .icon-button { color:#a4ac9e; }
+    :root[data-theme="dark"] .main-play { background:linear-gradient(145deg,#e5dcc7,#c4b99f); color:#242921; border-color:#ffffff25; box-shadow:0 3px 8px #00000020,inset 0 1px 0 #ffffff50; }
+    :root[data-theme="dark"] .speed { background:#ffffff05; border-color:#ffffff0e; color:#c3b394; }
+    :root[data-theme="dark"] #repeat-button[aria-pressed="true"] { background:#b0977120; color:#dbc7a2; }
+    :root[data-theme="dark"] .range::-webkit-slider-runnable-track { background:linear-gradient(to right,#c2ac88 var(--progress),#3a4137 var(--progress)); }
+    :root[data-theme="dark"] .range::-webkit-slider-thumb { background:#c2ac88; }
+    :root[data-theme="dark"] .range::-moz-range-track { background:#3a4137; }
+    :root[data-theme="dark"] .range::-moz-range-progress,:root[data-theme="dark"] .range::-moz-range-thumb { background:#c2ac88; }
+    :root[data-theme="dark"] .toast { background:#30372cf5; border-color:#ffffff12; color:#ded1b8; }
+    @media (hover:hover) { .theme-toggle:hover { background:#e7ddce; } :root[data-theme="dark"] .filter:hover,:root[data-theme="dark"] .library-track:hover,:root[data-theme="dark"] .icon-button:hover { background:#ffffff08; } :root[data-theme="dark"] .theme-toggle:hover,:root[data-theme="dark"] .follow-toggle:hover { background:#ffffff09; } }
+    @media(max-width:760px) { .theme-toggle { width:34px; height:35px; padding:0; border-radius:10px; } .theme-label { display:none; } .topbar { gap:8px; } }
+    @media(prefers-reduced-motion:reduce) { body,.sidebar,.player,.scene,.filter,.library-track,.follow-toggle,.theme-toggle { transition:none; } }
   </style>
 </head>
 <body>
@@ -191,6 +249,7 @@
     <symbol id="i-castle" viewBox="0 0 24 24"><path d="M3 20V6h4v4h3V6h4v4h3V6h4v14H3Z"/><path d="M9 20v-5a3 3 0 0 1 6 0v5M7 3v3m10-3v3"/></symbol>
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.3"/><rect x="14" y="4" width="6" height="6" rx="1.3"/><rect x="4" y="14" width="6" height="6" rx="1.3"/><rect x="14" y="14" width="6" height="6" rx="1.3"/></symbol>
     <symbol id="i-letter" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.2A8.5 8.5 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2Z"/></symbol>
     <symbol id="i-follow" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10v4m4-7v10m5-13v16m5-13v10m4-7v4"/></symbol>
@@ -214,11 +273,11 @@
       <button class="icon-button drawer-close" id="close-library" type="button" aria-label="关闭合集"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
       <div class="section-label">我的合集</div>
       <nav class="filters" aria-label="内容分类">
-        <button class="filter" data-category="all" type="button" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span class="filter-label">全部内容</span><span class="filter-count" id="count-all">2</span></button>
-        <button class="filter" data-category="letter" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-letter"/></svg><span class="filter-label">情书 💌</span><span class="filter-count" id="count-letter">1</span></button>
+        <button class="filter" data-category="all" type="button" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span class="filter-label">全部内容</span><span class="filter-count" id="count-all">4</span></button>
+        <button class="filter" data-category="letter" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-letter"/></svg><span class="filter-label">情书 💌</span><span class="filter-count" id="count-letter">3</span></button>
         <button class="filter" data-category="story" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg><span class="filter-label">故事</span><span class="filter-count" id="count-story">1</span></button>
       </nav>
-      <div class="collection-heading"><span id="collection-heading">所有内容</span><span id="collection-count">2 篇</span></div>
+      <div class="collection-heading"><span id="collection-heading">所有内容</span><span id="collection-count">4 篇</span></div>
       <div class="library" id="library-list" role="list"></div>
       <div class="sidebar-foot" id="library-summary">给迷湖公主的故事与情书</div>
     </aside>
@@ -226,6 +285,7 @@
       <header class="topbar">
         <button class="icon-button mobile-menu" id="open-library" type="button" aria-label="打开内容合集" aria-expanded="false" aria-controls="sidebar"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg></button>
         <div class="current-heading"><span class="mobile-brand">迷湖公主的小城堡</span><h1 id="current-title">下一封见</h1><div class="header-meta"><span id="current-category">情书 💌</span><span class="dot"></span><span id="header-duration">10:00</span></div></div>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换日间或夜间模式" aria-pressed="false"><svg class="icon" aria-hidden="true"><use id="theme-icon" href="#i-sun"/></svg><span class="theme-label" id="theme-label">日间</span></button>
         <button class="follow-toggle" id="follow-toggle" type="button" aria-label="暂停自动跟随朗读" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-follow"/></svg><span class="follow-label" id="follow-label">跟随朗读</span></button>
       </header>
       <section class="stage" aria-label="同步听读面板">
@@ -255,7 +315,7 @@
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
   <audio id="audio" preload="metadata"></audio>
-  <script src="library-data.js?v=castle-1"></script>
-  <script src="player-app.js?v=castle-2"></script>
+  <script src="library-data.js?v=castle-3"></script>
+  <script src="player-app.js?v=castle-3"></script>
 </body>
 </html>
