@@ -331,7 +331,9 @@
   if ('ResizeObserver' in window) new ResizeObserver(resizeScene).observe(canvas); else window.addEventListener('resize',resizeScene);
 
   $('count-all').textContent = tracks.length; $('count-letter').textContent = tracks.filter(t=>t.category==='letter').length; $('count-story').textContent = tracks.filter(t=>t.category==='story').length;
-  $('library-summary').textContent = `共 ${tracks.length} 篇 · ${format(tracks.reduce((sum,t)=>sum+t.duration,0),true)}`;
+  const listeningMinutes = Math.round(tracks.reduce((sum,t)=>sum+t.duration,0)/60);
+  const listeningDuration = listeningMinutes >= 60 ? `${Math.floor(listeningMinutes/60)}小时${listeningMinutes%60}分` : `${listeningMinutes}分钟`;
+  $('library-summary').textContent = `共 ${tracks.length} 篇 · ${listeningDuration}`;
   updateSpeed(); updateVolume(); renderLibrary(); renderMobileCollection();
   selectTrack(tracks.some(t=>t.id===saved.current) ? saved.current : tracks[0].id);
   resizeScene(); if(motion.matches)drawScene(0);else startScene();
