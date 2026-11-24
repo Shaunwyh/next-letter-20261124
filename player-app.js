@@ -57,33 +57,53 @@
   };
 
   const filtered = () => tracks.filter(t => category === 'all' || t.category === category);
+  function trackButton(track, className, queueTracks) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = className; button.dataset.track = track.id;
+    button.setAttribute('aria-label', `播放《${track.title}》，${categoryName(track.category)}，${format(track.duration, true)}`);
+    if (className === 'library-track') {
+      const cover = document.createElement('span'); cover.className = `art-cover is-${track.category}`; cover.setAttribute('aria-hidden','true'); cover.innerHTML = coverHTML(track.category); button.append(cover);
+    }
+    const info = document.createElement('span'); info.className = 'track-info';
+    const title = document.createElement('span'); title.className = 'track-title'; title.textContent = track.title;
+    const detail = document.createElement('span'); detail.className = 'track-detail';
+    const kind = document.createElement('span'); kind.textContent = categoryName(track.category);
+    const duration = document.createElement('span'); duration.textContent = format(track.duration, true);
+    detail.append(kind, duration); info.append(title, detail); button.append(info);
+    button.addEventListener('click', () => {
+      queue = queueTracks.map(t => t.id);
+      if (current?.id === track.id) { updateQueueButtons(); togglePlayback(); }
+      else selectTrack(track.id, {autoplay:true});
+      closeDrawer();
+    });
+    return button;
+  }
   function renderLibrary() {
     const visible = filtered(); $('library-list').replaceChildren();
     $('collection-heading').textContent = category === 'all' ? '所有内容' : categoryName(category);
     $('collection-count').textContent = visible.length + ' 篇';
     visible.forEach(track => {
       const item = document.createElement('div'); item.setAttribute('role', 'listitem');
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'library-track'; button.dataset.track = track.id;
-      button.setAttribute('aria-label', `播放《${track.title}》，${categoryName(track.category)}，${format(track.duration, true)}`);
-      const cover = document.createElement('span'); cover.className = `art-cover is-${track.category}`; cover.setAttribute('aria-hidden','true'); cover.innerHTML = coverHTML(track.category);
-      const info = document.createElement('span'); info.className = 'track-info';
-      const title = document.createElement('span'); title.className = 'track-title'; title.textContent = track.title;
-      const detail = document.createElement('span'); detail.className = 'track-detail';
-      const kind = document.createElement('span'); kind.textContent = categoryName(track.category);
-      const duration = document.createElement('span'); duration.textContent = format(track.duration, true);
-      detail.append(kind, duration); info.append(title, detail); button.append(cover, info);
-      button.addEventListener('click', () => {
-        queue = visible.map(t => t.id);
-        if (current?.id === track.id) { updateQueueButtons(); togglePlayback(); }
-        else selectTrack(track.id, {autoplay:true});
-        closeDrawer();
-      });
+      const button = trackButton(track, 'library-track', visible);
       item.append(button); $('library-list').append(item);
     });
     updateLibraryState();
   }
+  function renderMobileCollection() {
+    $('mobile-collection-count').textContent = tracks.length + ' 篇';
+    tracks.forEach(track => {
+      const item = document.createElement('div'); item.setAttribute('role','listitem');
+      item.append(trackButton(track, 'mobile-track', tracks)); $('mobile-track-list').append(item);
+    });
+  }
+  function revealMobileTrack() {
+    if (!mobile.matches) return;
+    const list = $('mobile-track-list'), selected = list.querySelector('.is-selected');
+    if (!selected) return;
+    const view = list.getBoundingClientRect(), item = selected.getBoundingClientRect();
+    if (item.left < view.left + 20 || item.right > view.right - 20) list.scrollTo({left:list.scrollLeft + item.left - view.left - 20, behavior:behavior()});
+  }
   function updateLibraryState() {
-    document.querySelectorAll('.library-track').forEach(button => {
+    document.querySelectorAll('.library-track,.mobile-track').forEach(button => {
       const selected = button.dataset.track === current?.id;
       button.classList.toggle('is-selected', selected);
       if (selected) button.setAttribute('aria-current','true'); else button.removeAttribute('aria-current');
@@ -171,6 +191,7 @@
     document.title = track.title + ' · 迷湖公主的小城堡';
     renderCues(); refresh(pendingSeek,true,'auto'); updateQueueButtons(); updateLibraryState();
     audio.src = track.audio; audio.load(); audio.playbackRate = preferredSpeed; updateSpeed(); updatePlayback();
+    revealMobileTrack();
     if ('mediaSession' in navigator && 'MediaMetadata' in window) navigator.mediaSession.metadata = new MediaMetadata({title:track.title,artist:'迷湖公主的小城堡',album:categoryName(track.category)});
     if (autoplay) playAudio();
   }
@@ -258,7 +279,7 @@
     drawerOpen = false; document.body.classList.remove('drawer-open'); $('open-library').setAttribute('aria-expanded','false'); $('sidebar').removeAttribute('role'); $('sidebar').removeAttribute('aria-modal'); $('sidebar').inert = mobile.matches; $('open-library').focus();
   }
   $('open-library').addEventListener('click',openDrawer); $('close-library').addEventListener('click',closeDrawer); $('library-backdrop').addEventListener('click',closeDrawer);
-  mobile.addEventListener('change', () => { closeDrawer(); $('sidebar').inert = mobile.matches; }); $('sidebar').inert = mobile.matches;
+  mobile.addEventListener('change', () => { closeDrawer(); $('sidebar').inert = mobile.matches; revealMobileTrack(); }); $('sidebar').inert = mobile.matches;
   document.addEventListener('keydown',event => {
     if (event.key === 'Escape') closeDrawer();
     if (drawerOpen && event.key === 'Tab') {
@@ -311,7 +332,7 @@
 
   $('count-all').textContent = tracks.length; $('count-letter').textContent = tracks.filter(t=>t.category==='letter').length; $('count-story').textContent = tracks.filter(t=>t.category==='story').length;
   $('library-summary').textContent = `共 ${tracks.length} 篇 · ${format(tracks.reduce((sum,t)=>sum+t.duration,0),true)}`;
-  updateSpeed(); updateVolume(); renderLibrary();
+  updateSpeed(); updateVolume(); renderLibrary(); renderMobileCollection();
   selectTrack(tracks.some(t=>t.id===saved.current) ? saved.current : tracks[0].id);
   resizeScene(); if(motion.matches)drawScene(0);else startScene();
 })();
