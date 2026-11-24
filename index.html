@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6efe5">
+  <meta name="robots" content="noindex, nofollow">
+  <meta property="og:title" content="下一封见">
+  <meta property="og:type" content="article">
+  <title>下一封见</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23f6efe5'/%3E%3Crect x='12' y='20' width='40' height='28' rx='3' fill='none' stroke='%23897663' stroke-width='2'/%3E%3Cpath d='m13 21 19 15 19-15' fill='none' stroke='%23897663' stroke-width='2'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #fbf7f0;
+      --ink: #5b4c40;
+      --muted: #8d7d6b;
+      --line: #d9cbb9;
+      --accent: #aa5b43;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #f6efe5;
+      background-image: radial-gradient(ellipse at 8% 0%, #eddbc74d, transparent 54%), radial-gradient(ellipse at 98% 65%, #eee0d340, transparent 45%);
+      font-family: var(--serif);
+      font-weight: 400;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      opacity: .032;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.75' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--muted); outline-offset: 5px; }
+    .player {
+      position: fixed;
+      top: max(18px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      width: min(580px, calc(100% - 32px));
+      min-height: 66px;
+      padding: 10px 20px 10px 11px;
+      border: 1px solid #ded0bf99;
+      border-radius: 999px;
+      background: #fcf9f2f0;
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 5px 26px #604b3510, 0 1px 4px #604b3508;
+    }
+    .play-button {
+      display: grid;
+      place-items: center;
+      flex: 0 0 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 50%;
+      background: #e9dece;
+      color: #786552;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .play-button:hover { background: #e1d2bf; }
+    .play-button svg { width: 19px; height: 19px; }
+    .play-icon { margin-left: 3px; }
+    .pause-icon { display: none; }
+    .player.is-playing .play-icon { display: none; }
+    .player.is-playing .pause-icon { display: block; }
+    .time {
+      font-family: "Baskerville", "Georgia", serif;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      color: #7f6d5b;
+      white-space: nowrap;
+      min-width: 36px;
+      text-align: center;
+    }
+    .progress {
+      --played: 0%;
+      min-width: 0;
+      flex: 1;
+      height: 24px;
+      margin: 0;
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      background: transparent;
+    }
+    .progress::-webkit-slider-runnable-track {
+      height: 3px;
+      border-radius: 2px;
+      background: linear-gradient(to right, #8d7862 var(--played), #e2d7c9 var(--played));
+    }
+    .progress::-moz-range-track {
+      height: 3px;
+      border-radius: 2px;
+      background: #e2d7c9;
+    }
+    .progress::-moz-range-progress { height: 3px; background: #8d7862; }
+    .progress::-webkit-slider-thumb {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      margin-top: -4.5px;
+      border-radius: 50%;
+      background: #8d7862;
+      border: 2px solid #fcf9f2;
+      box-shadow: 0 0 0 1px #8d786233;
+    }
+    .progress::-moz-range-thumb {
+      width: 8px;
+      height: 8px;
+      border: 2px solid #fcf9f2;
+      border-radius: 50%;
+      background: #8d7862;
+    }
+    .audio-error {
+      position: fixed;
+      z-index: 11;
+      top: 94px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: calc(100% - 32px);
+      margin: 0;
+      padding: 8px 15px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--paper);
+      font-size: 14px;
+      text-align: left;
+    }
+    .letter {
+      width: min(844px, calc(100% - 72px));
+      margin: 127px auto 65px;
+      padding: 72px 74px 76px;
+      border: 1px solid #e5d9c766;
+      background: var(--paper);
+      box-shadow: 0 12px 50px #78604406;
+    }
+    .letter-header { margin-bottom: 54px; }
+    .envelope { display: block; width: 43px; height: 35px; margin-bottom: 28px; color: #9c8772; }
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 46px);
+      font-weight: 400;
+      letter-spacing: .14em;
+      line-height: 1.45;
+      text-align: left;
+    }
+    .letter-content { font-size: 18px; line-height: 2.08; letter-spacing: .035em; overflow-wrap: break-word; }
+    .letter-content p { margin: 0 0 30px; text-align: left; font-weight: 400; color: var(--ink); }
+    .note-wrap { margin: 46px -9px 49px; filter: drop-shadow(0 5px 8px #8b735315); }
+    .note {
+      position: relative;
+      padding: 36px 36px 34px;
+      background: #eee1ce;
+      clip-path: polygon(.8% 1%, 13% 0%, 28% .8%, 43% 0%, 59% 1%, 74% .3%, 88% 1.2%, 99% .3%, 99.6% 17%, 99% 37%, 100% 56%, 99.2% 76%, 99.6% 98.5%, 84% 99.2%, 66% 98.7%, 48% 100%, 33% 98.8%, 15% 99.6%, .5% 98.5%, 1% 79%, 0% 57%, .7% 38%, 0% 17%);
+    }
+    .note p { margin: 0; text-align: left; font-size: 17px; line-height: 2.15; }
+    .letter-content .closing {
+      margin: 0;
+      color: var(--accent);
+      font-size: 22px;
+      line-height: 1.8;
+      letter-spacing: .06em;
+      font-weight: 400;
+    }
+    @media (max-width: 640px) {
+      .player { gap: 10px; min-height: 60px; padding: 8px 15px 8px 9px; }
+      .play-button { flex-basis: 42px; height: 42px; }
+      .time { font-size: 13px; min-width: 32px; }
+      .letter { width: calc(100% - 28px); margin: 106px auto 24px; padding: 42px 25px 48px; }
+      .letter-header { margin-bottom: 36px; }
+      .envelope { width: 36px; height: 30px; margin-bottom: 21px; }
+      h1 { font-size: 35px; letter-spacing: .12em; }
+      .letter-content { font-size: 17px; line-height: 2.02; letter-spacing: .025em; }
+      .letter-content p { margin-bottom: 27px; }
+      .note-wrap { margin: 36px -7px 35px; }
+      .note { padding: 27px 21px; }
+      .note p { margin-bottom: 0; font-size: 16px; line-height: 2.1; }
+      .letter-content .closing { margin-bottom: 0; font-size: 20px; letter-spacing: .025em; }
+    }
+    @media (max-width: 360px) {
+      .letter { padding-left: 19px; padding-right: 19px; }
+      .note { padding-left: 17px; padding-right: 17px; }
+      .note p { font-size: 15px; }
+      .letter-content .closing { font-size: 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    @media print {
+      body { background: white; }
+      body::before, .player, .audio-error { display: none; }
+      .letter { width: 100%; margin: 0; padding: 20px; box-shadow: none; border: 0; }
+      .note-wrap { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="player" id="player-controls" role="region" aria-label="音频播放器">
+    <button class="play-button" id="play-button" type="button" aria-label="播放音频">
+      <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3.8c0-.8.9-1.3 1.6-.9l13 8.2c.7.4.7 1.4 0 1.8l-13 8.2c-.7.4-1.6-.1-1.6-.9V3.8Z"/></svg>
+      <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/></svg>
+    </button>
+    <span class="time" id="current-time">00:00</span>
+    <input class="progress" id="progress" type="range" min="0" max="599.98" step="0.1" value="0" aria-label="播放进度" aria-valuetext="00:00，共 10:00">
+    <span class="time" id="duration">10:00</span>
+  </div>
+  <p class="audio-error" id="audio-error" role="status" hidden></p>
+  <audio id="audio" src="next-letter.mp3" preload="metadata"></audio>
+  <main class="letter">
+    <header class="letter-header">
+      <svg class="envelope" viewBox="0 0 48 38" fill="none" stroke="currentColor" stroke-width="1.05" aria-hidden="true"><path d="M3 7.5h42v27H3z"/><path d="m3 7.5 21 17 21-17M3 34.5l14.5-14M45 34.5l-14.5-14"/><path d="M8 3h32" opacity=".35"/></svg>
+      <h1>下一封见</h1>
+    </header>
+    <article class="letter-content" aria-label="下一封见全文">
+      <p>早上我走在路上。阳光先洒入我的脸，再一截一截洒满身体。冬天的风似乎带着暖，吹动蓬松的树叶。一抬头，看见头顶那片干净的天空，忽然想问问你：你会偏爱蓝色吗？</p>
+
+      <p>天空、深海、暮色里的远山、画布上的颜料，还有陶瓷上的釉色，以及我们常常会拿来形容情绪的特质的一些词，比如忧郁、澄明、辽阔，都有蓝色的影子。在远古的环境里，蓝色是安全的信号，头顶恒定的天穹，源源不断的水源，这些都是生存得以延续的根基。红色常常关联着火焰、危险，而绿色代表着生机。蓝色呢，大多就指向遥远、稳定，不会骤然侵袭我们的事物。很长一段时间里，蓝色是极其昂贵稀缺的。在古代大地上，容易获取的颜料是赭石、炭黑、土黄，能做成稳定的蓝色染料的材料特别少，比如说像青金石，要从遥远的地域去开采，再研磨成粉，最后才能够绘制佛像、经卷。所以你看，蓝色是昂贵的、神圣的，不属于俗世喧嚣的。它也特别奇妙，形成了一种反差：我们日日抬头都能看见的蓝天，可是想要握住蓝色，把它留在纸张、经卷上，却非常困难。人的心里往往会有两种很矛盾的状态，一边很向往安宁，另一边对于未知又充满着渴望。我们迷恋蓝色，本质上是在迷恋蓝色的特质——它拥有边界，却又无限延展；它近在眼前，却又无法攥在手里。蓝色就好像是在提醒我们，我们一定会拥有更大的空间，可以容纳所有我们未说出口的向往，以及对无穷之境的想象。</p>
+
+      <p>遇见你之后，那些原本藏在心里、未说出口的向往，突然都长出了想要递出去的形状。平时表达自己其实是一件很累的事情，像从我凌乱的一天里剪出一团毛线，慢吞吞地缠起来，跟人说哪里是头，哪里是尾；可绝大部分时间，我连气都不叹，就决定算了。唯独对你不一样。生活是个动词，生活分享给了谁，爱就分享给了谁。当我看见世间一切细碎美好的事物时，第一时间就想分享给你——比如路上看到奇形怪状的云，超美的晚霞，吃到一口很好吃的菜，刷到一个非常治愈的视频。这种下意识其实就是分享欲，它不是倾诉，也不是情绪的倾倒，它就是我想让你参与我的普通人生，我的平平无奇，我的喜怒哀乐，我的无聊瞬间。在琐碎和日常的那些生活当中，分享欲才是最高级的浪漫。</p>
+
+      <p>只是有些心意，一旦开了头，便再也由不得自己收住了。最初向你靠近时，心里满是看见好风景的新奇与欢喜，觉得跟你说话格外舒展；后来日子一天天叠上去，那点喜欢在不知不觉间越酿越浓，渗进了白昼与黑夜的每一道缝隙；再往后，它变得越来越热烈，滚烫得让人几乎招架不住，直到如今，早已到了不能自已的地步。一天有二十四个小时，我就这样想了你很多次。今天天气很好想你一次，吃了什么早饭想你一次，上班摸鱼的时候想你一次，工作餐吃什么想你一次，下班之后看见人来人往、车水马龙，或者短暂美丽的落日晚霞，也会想你一次；平安到家了想你一次，偶尔没收到你的消息也想你一次，睡觉之前也会想你一次——梦里想你那次就不算，因为我不是每天都梦见你。</p>
+
+      <p>只是，当分享欲涌得太满，安静的缝隙里难免会生出一点落差。你习惯把许多心事收在自己的世界里，不爱把日常的琐碎事无巨细地向外摊开，有时离得很近，三言两语就能聊出许多火花，有时又像退回到了自己的轨道上，忽远忽近。常常是我这边兴冲冲地递出一整天的见闻，你那边却只落下一两句简短的回应，或者是一整晚绵长的寂静。人大概都是这样，能坦然接受全然的冷漠，唯独在尝过热络之后突然撞见安静，心里便会跟着空落一下，忍不住去琢磨：怎么突然就安静下来了呢？那些没等来回音的时刻，热腾腾递出去的分享悬在半空，夜深人静时，思绪在期待与落空之间来回打转，也生出过几分说不清的拉扯。</p>
+
+      <p>直到前几天傍晚起风，空气里带着一点微凉的草木气息，突然让我想起了前阵子桂花盛开的季节。我们好像天生就有一种本能，遇见美好的事物，第一反应就想要留住它。可如今回头去想那短短十几天的桂花香，倒更像是在提醒我，世间很多动人的东西，生来短暂。有一个概念叫做一期一会，它讲的是每一次的相逢都仅此一次、不可复制，所以你要全然投入当下。就像江上清风，山间明月，取之无尽，用之不竭，我们真正能够拥有的，从来都不是事物本身，而是获得那一刻的感知。生活里有太多这样短暂的美好了，我们只需要完整地接住那一瞬间，然后好好感受，认真看见；当它离开的时候，允许自己怅然，然后轻轻道别。我们总在寻找永不消失的美好，可世间很多动人的事物，本就是刹那的馈赠。</p>
+
+      <p>想通了这一点，心里的弦便慢慢松了下来。当下的我，曾一度也太迷恋一种叫做“情绪稳定”的东西了，好像只有心如止水、毫无波澜，才算得上通透。直到后来才慢慢体悟到，人的一生，大抵会依次遇见尼采、加缪与庄子。年轻的时候，先撞见尼采，劈开迷雾，告诉你说价值要自己创造，于是你意识到依赖的权威并不存在，必须成为自己的光；接着加缪又来了，你看到推着石头上山的西西弗不是幸福的，因为他登上顶峰的斗争，足以充实一切重要，因此重要的不是治愈，而是要带着病痛活下去；最后，庄子化成蝴蝶翩翩而来，他微笑拂袖指给你看，说天地有大美，万物皆可逍遥，你这才发现，对抗本身仍是执着。于是你松开拳头，让风穿过指缝——不再推石头，你已成了山的一部分；不再追问意义，你已流淌成了江河。</p>
+
+      <p>松开拳头之后，那些在期待与静默之间打转的执念，也就跟着化开了。其实我们每个人，都在这无序的世界里，努力活出自己有序的节奏。允许自己在人群中感到孤独是一种自由，不要为了合群而破坏自己的节奏是一种自由，坦然接受失去和得到也是一种自由。这些种种的自由，才最终构成了那个不被任何人定义的完整的自我。既然如此，我便不再强求每份热情都必须立刻等来回响，也不必为了显得豁达而假装无所谓。真正的成熟不是没有情绪，而是允许悲和喜同时存在；很多事情当下纠缠不清，心结一时解不开，便不强求马上得到一个结果，也不逼自己立刻看透，把一时想不通的落差先放一放，交给时间，日子往前走，局势总会慢慢明朗，对错取舍也终会自然分出昼和夜。况且，如果这一切只是我过重的思念在大脑里的狂欢，那么想念你的时候，我的心也已经在放烟火了。喜欢从来不是一次性的誓言，它是千千万万次微小的奔赴，是理解、包容、承担与守护。如果一次不够，那就一千次；如果一千次不够，那就千千万万遍。</p>
+
+      <div class="note-wrap">
+        <div class="note">
+          <p>有时候，会很喜欢看你穿蓝色的衣服<br>从此，看海看天，都心不在焉。<br>明知那些蓝，各有各的深浅，<br>眼里浮起的，还是你的容颜<br>我会在这深浅不一的蓝色里，偷偷沦陷。<br>一抬头，把每一抹蓝，都当成我们拥抱的瞬间。<br>自此，你在云端，也在心尖。</p>
+        </div>
+      </div>
+      <p class="closing">我喜欢迷湖宝宝，下一封见</p>
+    </article>
+  </main>
+  <script>
+    (() => {
+      const audio = document.getElementById('audio');
+      const controls = document.getElementById('player-controls');
+      const button = document.getElementById('play-button');
+      const progress = document.getElementById('progress');
+      const current = document.getElementById('current-time');
+      const duration = document.getElementById('duration');
+      const error = document.getElementById('audio-error');
+      let seeking = false;
+
+      const formatTime = (seconds) => {
+        const whole = Math.max(0, Math.floor(seconds || 0));
+        return String(Math.floor(whole / 60)).padStart(2, '0') + ':' + String(whole % 60).padStart(2, '0');
+      };
+      const updateProgress = (seconds = audio.currentTime) => {
+        const total = Number.isFinite(audio.duration) ? audio.duration : Number(progress.max);
+        current.textContent = formatTime(seconds);
+        progress.value = seconds;
+        progress.style.setProperty('--played', `${Math.min(100, seconds / total * 100)}%`);
+        progress.setAttribute('aria-valuetext', `${formatTime(seconds)}，共 ${duration.textContent}`);
+      };
+      const updateState = () => {
+        const playing = !audio.paused && !audio.ended;
+        controls.classList.toggle('is-playing', playing);
+        button.setAttribute('aria-label', playing ? '暂停音频' : '播放音频');
+      };
+      const showError = (message) => {
+        error.textContent = message;
+        error.hidden = false;
+      };
+
+      button.addEventListener('click', async () => {
+        error.hidden = true;
+        if (!audio.paused) { audio.pause(); return; }
+        if (audio.error) audio.load();
+        try { await audio.play(); }
+        catch (e) {
+          if (e.name !== 'AbortError') showError('音频暂时无法播放，请再点一次播放。');
+        }
+      });
+      audio.addEventListener('loadedmetadata', () => {
+        if (Number.isFinite(audio.duration)) {
+          progress.max = audio.duration;
+          duration.textContent = formatTime(Math.round(audio.duration));
+          updateProgress();
+        }
+      });
+      audio.addEventListener('timeupdate', () => { if (!seeking) updateProgress(); });
+      audio.addEventListener('play', updateState);
+      audio.addEventListener('pause', updateState);
+      audio.addEventListener('ended', () => { updateState(); updateProgress(); });
+      audio.addEventListener('playing', () => { error.hidden = true; });
+      audio.addEventListener('error', () => showError('音频暂时无法加载，请点播放重试。'));
+      progress.addEventListener('pointerdown', () => { seeking = true; });
+      progress.addEventListener('input', () => {
+        const position = Number(progress.value);
+        updateProgress(position);
+        if (Number.isFinite(audio.duration)) audio.currentTime = position;
+      });
+      const finishSeek = () => { seeking = false; updateProgress(); };
+      progress.addEventListener('change', finishSeek);
+      window.addEventListener('pointerup', () => { if (seeking) finishSeek(); });
+      window.addEventListener('pointercancel', () => { if (seeking) finishSeek(); });
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: '下一封见' });
+        navigator.mediaSession.setActionHandler('play', () => { audio.play().catch(() => {}); });
+        navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+        navigator.mediaSession.setActionHandler('seekto', (event) => {
+          if (Number.isFinite(event.seekTime)) { audio.currentTime = event.seekTime; updateProgress(); }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
