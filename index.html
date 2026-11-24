@@ -294,11 +294,11 @@
       <button class="icon-button drawer-close" id="close-library" type="button" aria-label="关闭合集"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button>
       <div class="section-label">我的合集</div>
       <nav class="filters" aria-label="内容分类">
-        <button class="filter" data-category="all" type="button" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span class="filter-label">全部内容</span><span class="filter-count" id="count-all">4</span></button>
+        <button class="filter" data-category="all" type="button" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span class="filter-label">全部内容</span><span class="filter-count" id="count-all">5</span></button>
         <button class="filter" data-category="letter" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-letter"/></svg><span class="filter-label">letter 💌合集</span><span class="filter-count" id="count-letter">3</span></button>
-        <button class="filter" data-category="story" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg><span class="filter-label">故事</span><span class="filter-count" id="count-story">1</span></button>
+        <button class="filter" data-category="story" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg><span class="filter-label">故事</span><span class="filter-count" id="count-story">2</span></button>
       </nav>
-      <div class="collection-heading"><span id="collection-heading">所有内容</span><span id="collection-count">4 篇</span></div>
+      <div class="collection-heading"><span id="collection-heading">所有内容</span><span id="collection-count">5 篇</span></div>
       <div class="library" id="library-list" role="list"></div>
       <div class="sidebar-foot" id="library-summary">给迷湖公主的故事与 letter 💌合集</div>
     </aside>
@@ -309,13 +309,13 @@
         <button class="follow-toggle" id="follow-toggle" type="button" aria-label="暂停自动跟随朗读" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-follow"/></svg><span class="follow-label" id="follow-label">跟随朗读</span></button>
       </header>
       <section class="mobile-collection" aria-label="内容合集">
-        <div class="mobile-collection-heading"><span class="mobile-collection-label">内容合集<span class="mobile-collection-count" id="mobile-collection-count">4 篇</span></span><button class="mobile-menu" id="open-library" type="button" aria-label="打开内容合集" aria-expanded="false" aria-controls="sidebar"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>全部内容</button></div>
+        <div class="mobile-collection-heading"><span class="mobile-collection-label">内容合集<span class="mobile-collection-count" id="mobile-collection-count">5 篇</span></span><button class="mobile-menu" id="open-library" type="button" aria-label="打开内容合集" aria-expanded="false" aria-controls="sidebar"><svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>全部内容</button></div>
         <div class="mobile-track-list" id="mobile-track-list" role="list" aria-label="左右滑动，选择故事或信件"></div>
       </section>
       <section class="stage" aria-label="同步听读面板">
         <div class="scene" id="scene">
           <canvas class="scene-canvas" id="scene-canvas" aria-hidden="true"></canvas>
-          <div class="scene-toolbar"><span class="scene-status"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg><span id="scene-status">等待播放</span></span><span class="scene-number" id="scene-number">01 / 02</span></div>
+          <div class="scene-toolbar"><span class="scene-status"><svg class="icon" aria-hidden="true"><use href="#i-wave"/></svg><span id="scene-status">等待播放</span></span><span class="scene-number" id="scene-number">01 / 05</span></div>
           <div class="lyrics-scroll" id="lyrics-scroll" tabindex="0" aria-label="正文，可滚动或点击句子跳转音频"><div class="lyrics-list" id="lyrics-list"></div></div>
           <span class="scene-hint"><svg class="icon" aria-hidden="true"><use href="#i-pointer"/></svg>点击句子，听到这里</span>
           <button class="return-current" id="return-current" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-follow"/></svg>回到正在读的地方</button>
@@ -339,7 +339,7 @@
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
   <audio id="audio" preload="metadata"></audio>
-  <script src="library-data.js?v=castle-5"></script>
-  <script src="player-app.js?v=castle-5"></script>
+  <script src="library-data.js?v=castle-6"></script>
+  <script src="player-app.js?v=castle-6"></script>
 </body>
 </html>
