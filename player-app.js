@@ -135,7 +135,7 @@
   function seekTo(time, scrollBehavior = 'auto') {
     if (!current) return;
     const target = Math.min(currentDuration() || current.duration, Math.max(0,time));
-    if (audio.readyState > 0) audio.currentTime = target; else pendingSeek = target;
+    if (audio.readyState > 0) { pendingSeek = null; audio.currentTime = target; } else pendingSeek = target;
     refresh(target,true,scrollBehavior); persist();
   }
   function selectTrack(id, {autoplay = false} = {}) {
