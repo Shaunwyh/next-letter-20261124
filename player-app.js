@@ -1,288 +1,203 @@
 (() => {
   'use strict';
-  const tracks = window.CASTLE_LIBRARY || [], $ = id => document.getElementById(id);
-  ['gesturestart','gesturechange','gestureend'].forEach(name => document.addEventListener(name,e => e.preventDefault(),{passive:false}));
-  document.addEventListener('touchmove',e => {if(e.touches.length>1)e.preventDefault();},{passive:false});
-  document.addEventListener('wheel',e => {if(e.ctrlKey)e.preventDefault();},{passive:false});
-  const audio = $('audio'), lyrics = $('lyrics-list'), scroller = $('lyrics-scroll');
-  const mobile = matchMedia('(max-width: 899px)'), motion = matchMedia('(prefers-reduced-motion: reduce)');
+  const $ = id => document.getElementById(id), tracks = window.CASTLE_LIBRARY || [];
+  const audio = $('audio'), player = $('player-sheet'), reader = $('player-reader');
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const storageKey = 'little-castle-player-v1', themeKey = 'little-castle-theme';
-  const title = '迷湖公主的蛋糕城堡';
-  const decodeLink = value => { try { return decodeURIComponent(value); } catch (_) { return ''; } };
-  let saved = {}; try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) {}
-  let current = null, category = 'all', query = '', queue = [], elements = [], active = -1;
-  let following = true, reading = 'immersive', pendingSeek = null, seeking = false;
-  let playMode = ['sequential','list','single','shuffle'].includes(saved.playMode) ? saved.playMode : 'list';
-  let shuffleBag=[],shuffleHistory=[],shuffleCursor=-1,historyNavigation=false;
-  const modeLabels={sequential:'顺序播放',list:'列表循环',single:'单曲循环',shuffle:'随机播放'};
-  const modeIcons={sequential:'order',list:'repeat',single:'repeat-one',shuffle:'shuffle'};
-  let lastSave = 0, toastTimer, hasPlayed = false, analyser = null, audioContext = null, spectrum = null;
+  const names = {sequential:'顺序播放',repeat:'列表循环',single:'单曲循环',random:'随机播放'};
+  const modeIcons = {sequential:'order',repeat:'repeat',single:'repeat-one',random:'shuffle'};
+  let saved = {}; try {saved = JSON.parse(localStorage.getItem(storageKey) || '{}');} catch (_) {}
   let positions = saved.positions && typeof saved.positions === 'object' ? saved.positions : {};
+  let category = 'all', query = '', current = null, position = 0, pendingSeek = null;
+  let sort = ['newest','oldest','sequence'].includes(saved.sortOrder) ? saved.sortOrder : 'newest';
+  let mode = ({list:'repeat',shuffle:'random'})[saved.playMode] || saved.playMode || 'repeat';
+  if (!names[mode]) mode = 'repeat';
   let speed = [0.5,1,1.5,2].includes(saved.speed) ? saved.speed : 1;
-  let sortOrder = ['newest','oldest','sequence'].includes(saved.sortOrder) ? saved.sortOrder : 'newest';
-  const ordered = tracks.slice().sort((a,b) => a.category === b.category ? a.sequence-b.sequence : a.category === 'letter' ? -1 : 1);
-  const icon = n => `<svg class="icon" aria-hidden="true"><use href="#i-${n}"/></svg>`;
-  const format = (s, round = false) => { const n = Math.max(0, round ? Math.round(s || 0) : Math.floor(s || 0)); return `${Math.floor(n/60).toString().padStart(2,'0')}:${(n%60).toString().padStart(2,'0')}`; };
-  const kind = t => t.category === 'letter' ? 'letter 💌' : '故事';
-  const timestamp = t => t.fileTimestamp.slice(0,19).replace('T',' ').replaceAll('-','.');
-  const dayKey = (date = new Date()) => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
-  const isNew = t => !!t.publishedAt && dayKey(new Date(t.publishedAt)) === dayKey();
-  const newBadge = () => { const badge=document.createElement('span');badge.className='new-badge';badge.textContent='新';badge.setAttribute('aria-label','今天新增');return badge; };
-  const duration = () => Number.isFinite(audio.duration) && audio.currentSrc === new URL(current?.audio || '',location.href).href ? audio.duration : current?.duration || 0;
-  const behavior = () => motion.matches ? 'auto' : 'smooth';
-  const eligible = () => ordered.filter(t => category === 'all' || t.category === category).sort((a,b) => {
-    if (sortOrder === 'sequence') return a.category === b.category ? a.sequence-b.sequence : a.category === 'letter' ? -1 : 1;
-    return (Date.parse(a.fileTimestamp)-Date.parse(b.fileTimestamp))*(sortOrder === 'newest' ? -1 : 1) || (a.category === b.category ? a.sequence-b.sequence : a.category === 'letter' ? -1 : 1);
+  let reading = saved.reading === 'full' ? 'full' : 'immersive', following = reading === 'immersive';
+  let cueElements = [], activeCue = -1, queue = [], shuffleBag = [], shuffleHistory = [], shuffleCursor = -1;
+  let closingFromHistory = false, lastSave = 0, toastTimer, dayTimer, lastDay;
+  const icon = name => '<svg class="icon" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+  const format = n => {n = Math.max(0,Math.floor(n || 0));return String(Math.floor(n/60)).padStart(2,'0') + ':' + String(n%60).padStart(2,'0');};
+  const date = t => t.fileTimestamp.slice(0,19).replace('T',' ').replaceAll('-','.');
+  const day = () => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const newToday = t => !!t.publishedAt && t.publishedAt.slice(0,10) === day();
+  const badge = () => {const b=document.createElement('span');b.className='new-badge';b.textContent='新';b.setAttribute('aria-label','今天新增');return b;};
+  const notify = text => {$('toast').textContent=text;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(() => $('toast').hidden=true,4000);};
+  if (!tracks.length) {notify('内容未能加载，请刷新后重试。');return;}
+  const eligible = () => tracks.filter(t => (category==='all'||t.category===category) && (!query||(t.title+' '+(t.category==='letter'?'letter':'故事')+' '+String(t.sequence).padStart(2,'0')).toLowerCase().includes(query))).sort((a,b) => {
+    if(sort==='sequence')return a.category===b.category?a.sequence-b.sequence:a.category==='letter'?-1:1;
+    return (Date.parse(a.fileTimestamp)-Date.parse(b.fileTimestamp))*(sort==='newest'?-1:1) || a.id.localeCompare(b.id);
   });
-  const visible = () => eligible().filter(t => !query || (t.title + ' ' + kind(t) + ' ' + String(t.sequence).padStart(2,'0')).toLocaleLowerCase().includes(query));
-  const notify = text => { $('toast').textContent = text; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true,4000); };
-  if (!tracks.length) { notify('合集未能加载，请刷新后再试。'); return; }
-  audio.volume = Number.isFinite(saved.volume) ? Math.max(0,Math.min(1,saved.volume)) : 1;
-  audio.defaultPlaybackRate = speed; audio.playbackRate = speed;
-  document.title = title;
-  let manualTheme = false; try { manualTheme = ['light','dark'].includes(localStorage.getItem(themeKey)); } catch (_) {}
-  function setTheme(theme, remember = false) {
-    const dark = theme === 'dark'; document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    document.querySelectorAll('.theme-toggle').forEach(b => { b.setAttribute('aria-label',dark?'切换到日间模式':'切换到夜间模式'); b.setAttribute('aria-pressed',String(dark)); b.innerHTML = icon(b.classList.contains('theme-switch') ? (dark?'moon':'sun') : (dark?'sun':'moon')) + (b.classList.contains('theme-switch') ? `<span>${dark?'夜间':'日间'}</span>` : ''); });
-    document.querySelector('meta[name="theme-color"]').content = dark ? '#181c19' : '#f6f3ee';
-    if (remember) { manualTheme = true; try { localStorage.setItem(themeKey,theme); } catch (_) {} }
-    window.dispatchEvent(new Event('castle-scene-change'));
-  }
-  document.querySelectorAll('.theme-toggle').forEach(b => b.addEventListener('click',() => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark',true)));
-  setTheme(document.documentElement.dataset.theme);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',e => { if(!manualTheme) setTheme(e.matches?'dark':'light'); });
+  const ready = () => !!current && audio.readyState>0 && audio.currentSrc === new URL(current.audio,location.href).href;
+  const playbackPosition = () => pendingSeek !== null ? pendingSeek : ready() ? audio.currentTime : position;
+  const duration = () => ready() && Number.isFinite(audio.duration) ? audio.duration : current?.duration || 0;
   function persist() {
-    if (current && pendingSeek === null && Number.isFinite(audio.currentTime)) positions[current.id] = audio.currentTime;
-    try { localStorage.setItem(storageKey,JSON.stringify({current:current?.id,positions,speed,volume:audio.volume,sortOrder,playMode})); } catch (_) {}
+    if(current)positions[current.id]=playbackPosition();
+    try {localStorage.setItem(storageKey,JSON.stringify({current:current?.id,positions,speed,volume:audio.volume,sortOrder:sort,playMode:({repeat:'list',random:'shuffle'})[mode]||mode,reading}));} catch (_) {}
   }
-  function renderLibrary() {
-    const items = visible(), list = $('library-list'); list.replaceChildren();
-    $('collection-heading').textContent = query ? '搜索结果' : category === 'all' ? '全部内容' : category === 'letter' ? 'letter 💌合集' : '故事合集';
-    $('collection-count').textContent = `${items.length} 篇`;
-    $('empty-search').hidden = items.length > 0; $('clear-search').hidden = !query;
-    items.forEach(t => {
-      const row = document.createElement('div'); row.setAttribute('role','listitem');
-      const b = document.createElement('button'); b.type = 'button'; b.className = `library-track is-${t.category}`; b.dataset.track = t.id;
-      b.setAttribute('aria-label',`播放${kind(t)} ${t.sequence}，《${t.title}》，${timestamp(t)}，时长 ${format(t.duration,true)}${isNew(t)?'，今天新增':''}`);
-      const cover = document.createElement('span'); cover.className = 'track-cover'; cover.setAttribute('aria-hidden','true'); cover.innerHTML = t.category === 'letter' ? icon('letter') : String(t.sequence).padStart(2,'0');
-      const info = document.createElement('span'); info.className = 'track-info';
-      const name = document.createElement('span'); name.className = 'track-title'; name.textContent = t.title;
-      const nameRow=document.createElement('span');nameRow.className='track-name';nameRow.append(name);if(isNew(t))nameRow.append(newBadge());
-      const detail = document.createElement('span'); detail.className = 'track-detail';
-      const date = document.createElement('time'); date.dateTime = t.fileTimestamp; date.textContent = timestamp(t);
-      const time = document.createElement('span'); time.className = 'track-duration'; time.textContent = format(t.duration,true); detail.append(date,time); info.append(nameRow,detail);
-      const arrow = document.createElement('span'); arrow.className = 'track-arrow'; arrow.setAttribute('aria-hidden','true'); arrow.innerHTML = icon('arrow');
-      b.append(cover,info,arrow); row.append(b); list.append(row);
-      b.addEventListener('click',() => { queue = eligible().map(t => t.id); if (current?.id !== t.id) selectTrack(t.id); openPlayer(true); playAudio(); });
-    });
-    updateLibraryState();
-  }
-  function updateLibraryState() {
-    document.querySelectorAll('.library-track').forEach(b => {
-      if (b.dataset.track === current?.id) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current');
-      const arrow = b.querySelector('.track-arrow');
-      arrow.innerHTML = b.dataset.track === current?.id && !audio.paused ? icon('wave') : icon('arrow');
-    });
-  }
-  function updateCurrentTitle() { if(!current)return;$('current-title').textContent=current.title;if(isNew(current))$('current-title').append(newBadge()); }
-  let dayTimer;
-  function scheduleDayRefresh() {
-    clearTimeout(dayTimer);
-    const untilMidnight=86400000-((Date.now()+8*3600000)%86400000)+100;
-    dayTimer=setTimeout(() => {renderLibrary();updateCurrentTitle();scheduleDayRefresh();},untilMidnight);
-  }
-  document.addEventListener('visibilitychange',() => {if(!document.hidden){renderLibrary();updateCurrentTitle();scheduleDayRefresh();}});
-  function setView(view, focus = false) {
-    document.body.dataset.view = view;
-    const libraryHidden = mobile.matches && view === 'player', playerHidden = mobile.matches && view === 'library';
-    $('library').inert = libraryHidden; $('player-page').inert = playerHidden;
-    window.dispatchEvent(new Event('castle-scene-change'));
-    if(view === 'player') requestAnimationFrame(() => { layoutLyrics(); if(focus && mobile.matches) $('back-library').focus({preventScroll:true}); });
-    else if(focus) { const b = $('library-list').querySelector('[aria-current=true]'); (b || $('search')).focus({preventScroll:true}); }
-  }
-  function openPlayer(push = true) {
-    if (!current) return;
-    if (mobile.matches && document.body.dataset.view !== 'player' && push) history.pushState({castlePlayer:true},'',`#listen=${encodeURIComponent(current.id)}`);
-    setView('player');
-  }
-  function returnLibrary() {
-    if (history.state?.castlePlayer && mobile.matches) history.back();
-    else { history.replaceState(null,'',location.pathname+location.search); setView('library',true); }
-  }
-  $('back-library').addEventListener('click',returnLibrary);
-  $('open-current').addEventListener('click',() => openPlayer(true));
-  window.addEventListener('popstate',() => {
-    const id = decodeLink(location.hash.replace(/^#listen=/,''));
-    if(location.hash.startsWith('#listen=') && tracks.some(t => t.id === id)) { if(current?.id !== id) selectTrack(id); setView('player',true); }
-    else setView('library',true);
-  });
-  mobile.addEventListener('change',() => { setView(document.body.dataset.view); if(!current && !mobile.matches) selectTrack(ordered[0].id); });
-  function renderCues() {
-    lyrics.replaceChildren(); elements = []; active = -1; let note = null, previousParagraph = -1;
-    current.cues.forEach((c,i) => {
-      let parent = lyrics;
-      if(c.style === 'note') { if(!note) { note=document.createElement('div');note.className='note-group';lyrics.append(note); } parent=note; } else note=null;
-      const b = document.createElement('button'); b.type='button';b.className='cue' + (c.style === 'closing'?' closing':'') + (previousParagraph !== c.paragraph?' paragraph-start':''); b.textContent=c.text; b.dataset.cue=i;
-      b.setAttribute('aria-label',`${format(c.start)}，${c.text}，从这里播放`);
-      b.addEventListener('click',() => { seekTo(c.start); if(reading==='immersive') setFollowing(true); playAudio(); });
-      parent.append(b);elements.push(b);previousParagraph=c.paragraph;
-    });
-    layoutLyrics();
-  }
-  function cueAt(t) {
-    let lo=0,hi=current.cues.length-1,result=0;
-    while(lo<=hi) { const mid=(lo+hi)>>1; if(current.cues[mid].start<=t+.035) {result=mid;lo=mid+1;}else hi=mid-1; }
-    return result;
-  }
-  function scrollCue(i, smooth=behavior()) {
-    const el=elements[i];if(!el||!scroller.clientHeight)return;
-    const center=reading==='full' ? scroller.clientHeight*.25 : scroller.clientHeight*.43;
-    const y=el.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-center+el.offsetHeight/2;
-    scroller.scrollTo({top:Math.max(0,y),behavior:smooth});
-  }
-  function refresh(t=pendingSeek ?? audio.currentTime, force=false, scrollBehavior=behavior()) {
-    if(!current)return;
-    const total=duration(),progress=total?Math.min(100,t/total*100):0;
-    if(!seeking) {$('seek').max=total||1;$('seek').value=t;}
-    $('elapsed').textContent=format(t);$('total').textContent=format(total,true);$('seek').style.setProperty('--progress',`${progress}%`);$('mini-progress').style.width=progress+'%';
-    $('seek').setAttribute('aria-valuetext',`${format(t)}，共 ${format(total,true)}`);
-    $('now-detail').textContent=`${audio.paused?'继续听':'正在播放'} · ${format(t)} / ${format(total,true)}`;
-    const index=cueAt(t);
-    if(index!==active||force) {
-      const old=active;active=index;
-      const update=new Set([old-1,old,old+1,index-1,index,index+1]);
-      update.forEach(i => { const el=elements[i];if(!el)return;el.classList.toggle('is-active',i===index);el.classList.toggle('is-near',Math.abs(i-index)===1);if(i===index)el.setAttribute('aria-current','true');else el.removeAttribute('aria-current'); });
-      if(following)requestAnimationFrame(() => scrollCue(index,scrollBehavior));
+  function resetShuffle() {shuffleBag=[];shuffleHistory=current?[current.id]:[];shuffleCursor=current?0:-1;}
+  function adoptQueue(items) {const ids=items.map(t=>t.id);if(!current||ids.includes(current.id)){queue=ids;resetShuffle();}updateQueue();}
+  function render() {
+    const items=eligible();$('list-name').textContent=query?'搜索结果':category==='letter'?'letter 💌合集':category==='story'?'故事合集':'全部内容';
+    $('count').textContent=items.length+' 篇';$('tracks').replaceChildren();$('empty').hidden=items.length>0;$('clear').hidden=!query;
+    for(const t of items) {
+      const row=document.createElement('button');row.type='button';row.className='track-row';row.dataset.track=t.id;
+      row.setAttribute('aria-label','播放《'+t.title+'》');
+      const art=document.createElement('span');art.className='track-art '+(t.category==='letter'?'is-letter':'tone-'+t.sequence%5);art.setAttribute('aria-hidden','true');
+      art.innerHTML=t.category==='letter'?icon('letter'):String(t.sequence).padStart(2,'0');
+      const info=document.createElement('span');info.className='track-info';
+      const name=document.createElement('span');name.className='track-name';const title=document.createElement('span');title.className='track-title';title.textContent=t.title;name.append(title);if(newToday(t))name.append(badge());
+      const meta=document.createElement('time');meta.className='track-meta';meta.dateTime=t.fileTimestamp;meta.textContent=date(t);
+      info.append(name,meta);const length=document.createElement('span');length.className='track-length';length.textContent=format(Math.round(t.duration));
+      row.append(art,info,length);const item=document.createElement('div');item.setAttribute('role','listitem');item.append(row);$('tracks').append(item);
+      row.addEventListener('click',() => {queue=items.map(x=>x.id);select(t);resetShuffle();openPlayer();play();});
     }
+    updateRows();
   }
-  function layoutLyrics() {
-    lyrics.style.setProperty('--anchor',Math.round(scroller.clientHeight*.42)+'px');
-    if(following && active>=0)scrollCue(active,'auto');
+  function updateRows() {
+    document.querySelectorAll('.track-row').forEach(row => {
+      const t=tracks.find(t=>t.id===row.dataset.track);const selected=t.id===current?.id;
+      if(selected)row.setAttribute('aria-current','true');else row.removeAttribute('aria-current');
+      row.querySelector('.track-art').innerHTML=selected&&!audio.paused?'<span class="equalizer"><i></i><i></i><i></i></span>':t.category==='letter'?icon('letter'):String(t.sequence).padStart(2,'0');
+    });
   }
-  function setFollowing(value, scroll=true) {
-    following=value;$('follow-toggle').setAttribute('aria-pressed',String(value));$('follow-label').textContent=value?'跟随朗读':'自由阅读';$('return-current').hidden=value||!current;
-    if(value&&scroll)scrollCue(active);
+  function titleFor(id) {$(id).textContent=current.title;if(newToday(current))$(id).append(badge());}
+  function renderReader() {
+    reader.replaceChildren();cueElements=[];activeCue=-1;let previous,paragraph;
+    for(const [i,cue] of (current.cues||[]).entries()) {
+      if(cue.paragraph!==previous||!paragraph){paragraph=document.createElement('div');paragraph.className='reader-paragraph'+(cue.style==='note'?' reader-note':'');reader.append(paragraph);previous=cue.paragraph;}
+      const line=document.createElement('button');line.type='button';line.className='reader-cue'+(cue.style==='closing'?' closing-cue':'');line.textContent=cue.text;line.dataset.cue=i;
+      line.setAttribute('aria-label',format(cue.start)+'，'+cue.text+'，从这里播放');
+      line.addEventListener('click',() => {seekTo(cue.start);if(reading==='immersive')following=true;updateFollow();play();});paragraph.append(line);cueElements.push(line);
+    }
+    reader.scrollTop=0;
   }
-  function setReading(mode) {
-    reading=mode;document.body.dataset.reading=mode;
-    $('mode-immersive').setAttribute('aria-pressed',String(mode==='immersive'));$('mode-full').setAttribute('aria-pressed',String(mode==='full'));
-    setFollowing(mode==='immersive',false);layoutLyrics();
-    if(mode==='full')scrollCue(active,'auto');
-    else scrollCue(active);
-    window.dispatchEvent(new Event('castle-scene-change'));
+  function scrollCurrent(smooth=true) {
+    const line=cueElements[activeCue];if(!line||!player.open)return;
+    const center=reading==='full'?reader.clientHeight*.25:reader.clientHeight*.5;
+    const top=line.getBoundingClientRect().top-reader.getBoundingClientRect().top+reader.scrollTop+line.offsetHeight/2-center;
+    reader.scrollTo({top:Math.max(0,top),behavior:motion.matches||!smooth?'auto':'smooth'});
   }
-  $('mode-immersive').addEventListener('click',() => setReading('immersive'));
-  $('mode-full').addEventListener('click',() => setReading('full'));
-  $('follow-toggle').addEventListener('click',() => setFollowing(!following));$('return-current').addEventListener('click',() => setFollowing(true));
-  scroller.addEventListener('wheel',() => setFollowing(false),{passive:true});scroller.addEventListener('touchmove',() => setFollowing(false),{passive:true});
-  scroller.addEventListener('keydown',e => {if(['ArrowDown','ArrowUp','PageDown','PageUp','Home','End'].includes(e.key))setFollowing(false);});
+  function refreshReader(t,force=false) {
+    const cues=current?.cues||[];let lo=0,hi=cues.length-1,index=0;
+    while(lo<=hi){const mid=(lo+hi)>>1;if(cues[mid].start<=t+.03){index=mid;lo=mid+1;}else hi=mid-1;}
+    if(index!==activeCue||force){cueElements[activeCue]?.classList.remove('active');cueElements[activeCue]?.removeAttribute('aria-current');activeCue=index;const line=cueElements[index];if(line){line.classList.add('active');line.setAttribute('aria-current','true');if(following||force)scrollCurrent(!force);}}
+  }
+  function updateFollow() {$('reader-follow').textContent=following?'跟随播放':'回到当前';$('reader-follow').setAttribute('aria-pressed',String(following));}
+  function setReading(next) {reading=next;following=next==='immersive';player.dataset.reading=next;document.querySelectorAll('button[data-reading]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.reading===next)));updateFollow();requestAnimationFrame(()=>refreshReader(playbackPosition(),true));persist();}
+  function updateCurrent() {
+    renderReader();for(const id of ['mini-title','now-title','player-title'])titleFor(id);
+    const mark=String(current.sequence).padStart(2,'0');$('mini-cover').innerHTML=current.category==='letter'?icon('letter'):mark;$('player-mark').innerHTML=current.category==='letter'?icon('letter'):mark;
+    $('now-meta').textContent=(current.category==='letter'?'letter':'故事')+' '+mark+' · '+format(Math.round(current.duration));
+    $('player-category').textContent=current.category==='letter'?'letter 💌合集':'故事合集 · '+mark;$('player-date').textContent=date(current);
+    if('mediaSession' in navigator && 'MediaMetadata' in window)navigator.mediaSession.metadata=new MediaMetadata({title:current.title,artist:'迷湖公主的蛋糕城堡',album:current.category==='letter'?'letter 💌合集':'故事合集'});
+    updateProgress();updateRows();updateQueue();
+  }
+  function updateProgress() {
+    if(!current)return;const t=playbackPosition(),total=duration(),progress=total?t/total*100:0;
+    for(const p of ['desktop','player']){const seek=$(p+'-seek');seek.max=total;seek.value=t;seek.style.setProperty('--progress',progress+'%');seek.setAttribute('aria-valuetext',format(t)+'，共 '+format(Math.round(total)));}
+    for(const p of ['now','player']){$(p+'-elapsed').textContent=format(t);$(p+'-duration').textContent=format(Math.round(total));}
+    $('mini-detail').textContent=(current.category==='letter'?'letter':'故事')+' '+String(current.sequence).padStart(2,'0')+' · '+(audio.paused?'继续听':'正在播放');$('mini-progress').style.width=progress+'%';refreshReader(t);
+  }
+  function updatePlay() {
+    const playing=!audio.paused&&!audio.ended;document.body.classList.toggle('is-playing',playing);
+    for(const id of ['play','player-play']){$(id).innerHTML=icon(playing?'pause':'play');$(id).setAttribute('aria-label',playing?'暂停音频':'播放音频');}
+    if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing?'playing':'paused';updateProgress();updateRows();
+  }
+  function select(t,reset=false) {
+    if(current?.id===t.id&&!reset)return;
+    if(current){persist();audio.pause();}current=t;
+    const remembered=reset?0:Number(positions[t.id])||0;position=remembered>=t.duration-2?0:Math.max(0,Math.min(remembered,t.duration));pendingSeek=position;
+    if(!queue.includes(t.id))queue=eligible().map(t=>t.id);audio.src=t.audio;audio.load();audio.playbackRate=speed;updateCurrent();updatePlay();
+    if(player.open&&location.hash.startsWith('#listen='))history.replaceState(history.state,'','#listen='+encodeURIComponent(current.id));persist();
+  }
   function seekTo(t) {
-    if(!current)return;const target=Math.min(duration()||current.duration,Math.max(0,t));
-    if(audio.readyState>0 && audio.currentSrc===new URL(current.audio,location.href).href){pendingSeek=null;audio.currentTime=target;}else pendingSeek=target;
-    refresh(target,true,'auto');persist();
+    position=Math.max(0,Math.min(duration(),Number(t)||0));if(ready()){pendingSeek=null;audio.currentTime=position;}else pendingSeek=position;
+    updateProgress();refreshReader(position,true);persist();
   }
-  function selectTrack(id) {
-    const t=tracks.find(t => t.id===id);if(!t)return;
-    persist();audio.pause();current=t;hasPlayed=false;
-    if(!queue.includes(id))queue=ordered.map(t => t.id);
-    if(playMode==='shuffle'&&!historyNavigation){shuffleHistory=shuffleHistory.slice(0,shuffleCursor+1);if(shuffleHistory.at(-1)!==id)shuffleHistory.push(id);shuffleCursor=shuffleHistory.length-1;shuffleBag=shuffleBag.filter(x=>x!==id);}
-    const remembered=Number(positions[id])||0;pendingSeek=remembered>=t.duration-2?0:Math.max(0,Math.min(remembered,t.duration));
-    document.body.classList.add('has-current');$('mini-player').hidden=false;
-    updateCurrentTitle();$('now-title').textContent=t.title;$('current-category').textContent=kind(t);$('scene-number').textContent=String(t.sequence).padStart(2,'0');
-    $('current-detail').textContent=`${timestamp(t)} · ${format(t.duration,true)}`;
-    $('open-current').setAttribute('aria-label',`返回《${t.title}》的播放页`);$('mini-cover').innerHTML=icon(t.category==='letter'?'letter':'moon');$('scene').dataset.kind=t.category;
-    setFollowing(reading==='immersive',false);renderCues();audio.src=t.audio;audio.load();audio.playbackRate=speed;refresh(pendingSeek,true,'auto');updatePlayback();updateQueue();
-    if(location.hash.startsWith('#listen='))history.replaceState(history.state,'',`#listen=${encodeURIComponent(id)}`);
-    if('mediaSession' in navigator && 'MediaMetadata' in window)navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:title,album:t.category==='letter'?'letter 💌合集':'故事合集'});
-    persist();window.dispatchEvent(new Event('castle-scene-change'));
+  async function play() {
+    const requested=current.id;$('toast').hidden=true;
+    if(audio.error){position=playbackPosition();pendingSeek=position;audio.load();}else if(audio.ended)seekTo(0);
+    try{await audio.play();}catch(e){if(e.name!=='AbortError'&&requested===current.id)notify('音频暂时无法播放，请再点一次播放。');}
   }
-  async function prepareAnalyser() {
-    // Keep native mobile audio routing for reliable lock-screen and background playback.
-    if(mobile.matches||motion.matches)return;
-    const Context=window.AudioContext||window.webkitAudioContext;if(!Context)return;
-    try {if(!audioContext)audioContext=new Context();if(audioContext.state==='suspended')await audioContext.resume();if(analyser)return;
-      analyser=audioContext.createAnalyser();analyser.fftSize=128;const source=audioContext.createMediaElementSource(audio);source.connect(analyser);analyser.connect(audioContext.destination);spectrum=new Uint8Array(analyser.frequencyBinCount);
-    }catch(_){}
-  }
-  async function playAudio() {
-    if(!current){selectTrack((visible()[0]||ordered[0]).id);openPlayer(true);}
-    $('toast').hidden=true;
-    if(audio.error){pendingSeek=positions[current.id]||0;audio.load();}
-    const requested=current.id;
-    try {const playback=audio.play();prepareAnalyser();await playback;}catch(e){if(e.name!=='AbortError' && current.id===requested)notify('音频暂时无法播放，请再点一次播放。');}
-  }
-  function togglePlayback(){if(audio.paused)playAudio();else audio.pause();}
-  function updatePlayback() {
-    const playing=!audio.paused&&!audio.ended;document.body.classList.toggle('is-playing',playing);$('player').classList.toggle('is-playing',playing);
-    [$('play'),$('mini-play')].forEach(b => b.setAttribute('aria-label',playing?'暂停音频':'播放音频'));
-    $('scene-status').textContent=playing?'正在朗读':hasPlayed?'已暂停':'等待播放';
-    if('mediaSession' in navigator)navigator.mediaSession.playbackState=playing?'playing':'paused';
-    updateLibraryState();refresh();window.dispatchEvent(new Event('castle-scene-change'));
-  }
+  function togglePlay() {if(audio.paused)play();else audio.pause();}
   function updateQueue() {
-    const i=queue.indexOf(current?.id);$('previous').disabled=queue.length<2 || (playMode==='sequential'&&i===0) || (playMode==='shuffle'&&!(shuffleCursor>0&&queue.includes(shuffleHistory[shuffleCursor-1])));$('next').disabled=queue.length<2 || (playMode==='sequential'&&i===queue.length-1);
+    const i=queue.indexOf(current?.id),short=queue.length<2;
+    $('prev').disabled=short||(mode==='sequential'&&i===0)||(mode==='random'&&shuffleCursor<=0);
+    for(const id of ['next','player-next'])$(id).disabled=short||(mode==='sequential'&&i===queue.length-1);
   }
-  function changeTrack(d) {
-    if(!queue.length)return;
-    if(playMode==='shuffle'){
-      let target;
-      if(d<0){if(shuffleCursor<=0)return;target=shuffleHistory[--shuffleCursor];if(!queue.includes(target)){shuffleCursor++;return;}historyNavigation=true;}
-      else if(shuffleCursor<shuffleHistory.length-1&&queue.includes(shuffleHistory[shuffleCursor+1])){target=shuffleHistory[++shuffleCursor];historyNavigation=true;}
-      else{shuffleBag=shuffleBag.filter(id=>queue.includes(id)&&id!==current?.id);if(!shuffleBag.length){shuffleBag=queue.filter(id=>id!==current?.id);for(let j=shuffleBag.length-1;j>0;j--){const k=Math.floor(Math.random()*(j+1));[shuffleBag[j],shuffleBag[k]]=[shuffleBag[k],shuffleBag[j]];}}target=shuffleBag.pop()||current?.id;}
-      if(target)selectTrack(target);historyNavigation=false;updateQueue();playAudio();return;
+  function next(delta=1,ended=false) {
+    if(!queue.length)return;let id;
+    if(ended&&mode==='single'){seekTo(0);play();return;}
+    if(mode==='random') {
+      if(delta<0){if(shuffleCursor<=0)return;id=shuffleHistory[--shuffleCursor];}
+      else if(shuffleCursor<shuffleHistory.length-1)id=shuffleHistory[++shuffleCursor];
+      else {
+        shuffleBag=shuffleBag.filter(x=>queue.includes(x)&&x!==current.id);
+        if(!shuffleBag.length){shuffleBag=queue.filter(x=>x!==current.id);for(let j=shuffleBag.length-1;j>0;j--){const k=Math.floor(Math.random()*(j+1));[shuffleBag[j],shuffleBag[k]]=[shuffleBag[k],shuffleBag[j]];}}
+        id=shuffleBag.pop()||current.id;shuffleHistory=shuffleHistory.slice(0,shuffleCursor+1);shuffleHistory.push(id);shuffleCursor=shuffleHistory.length-1;
+      }
+    }else {
+      const i=queue.indexOf(current.id),j=i+delta;if(mode==='sequential'&&(j<0||j>=queue.length))return;id=queue[(j+queue.length)%queue.length];
     }
-    const i=queue.indexOf(current?.id),target=i+d;
-    if(playMode==='sequential'&&(target<0||target>=queue.length))return;
-    selectTrack(queue[(target+queue.length)%queue.length]);playAudio();
+    const t=tracks.find(t=>t.id===id);if(t){select(t,ended);updateQueue();play();}
   }
-  function updatePlayMode(){const label=modeLabels[playMode];$('mode-button').innerHTML=icon(modeIcons[playMode]);$('mode-button').setAttribute('aria-label',`${label}，选择播放模式`);$('mode-button').title=label;document.querySelectorAll('[data-play-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.playMode===playMode)));updateQueue();persist();}
-  audio.addEventListener('loadedmetadata',() => {
-    if(!current||audio.currentSrc!==new URL(current.audio,location.href).href)return;
-    if(pendingSeek!==null){audio.currentTime=Math.min(pendingSeek,Math.max(0,audio.duration-.05));pendingSeek=null;}audio.playbackRate=speed;refresh(audio.currentTime,true,'auto');
+  function openPlayer(push=true) {
+    if(!player.open){if(push&&!location.hash.startsWith('#listen='))history.pushState({castlePlayer:true},'','#listen='+encodeURIComponent(current.id));player.showModal();document.body.classList.add('player-open');}
+    requestAnimationFrame(()=>refreshReader(playbackPosition(),true));
+  }
+  player.addEventListener('close',() => {
+    document.body.classList.remove('player-open');if(closingFromHistory){closingFromHistory=false;return;}
+    if(location.hash.startsWith('#listen=')){if(history.state?.castlePlayer)history.back();else history.replaceState(null,'',location.pathname+location.search);}
   });
-  audio.addEventListener('timeupdate',() => {if(!seeking)refresh();if(Date.now()-lastSave>4000){persist();lastSave=Date.now();}if('mediaSession' in navigator && navigator.mediaSession.setPositionState && Number.isFinite(audio.duration)){try{navigator.mediaSession.setPositionState({duration:audio.duration,position:audio.currentTime,playbackRate:audio.playbackRate});}catch(_){}}});
-  audio.addEventListener('playing',() => {hasPlayed=true;updatePlayback();});audio.addEventListener('play',updatePlayback);audio.addEventListener('pause',() => {updatePlayback();persist();});
-  audio.addEventListener('waiting',() => {if(!audio.paused)$('scene-status').textContent='正在加载';});audio.addEventListener('error',() => {if(current){updatePlayback();notify('音频加载失败，请点击播放重试。');}});
-  audio.addEventListener('ended',() => {persist();const i=queue.indexOf(current.id);if(playMode==='single'){seekTo(0);playAudio();}else if(playMode!=='sequential'||i<queue.length-1)changeTrack(1);else updatePlayback();});
-  $('play').addEventListener('click',togglePlayback);$('mini-play').addEventListener('click',togglePlayback);$('previous').addEventListener('click',() => changeTrack(-1));$('next').addEventListener('click',() => changeTrack(1));
-  $('rewind').addEventListener('click',() => {seekTo(audio.currentTime-15);setFollowing(true);});$('forward').addEventListener('click',() => {seekTo(audio.currentTime+15);setFollowing(true);});
-  $('seek').addEventListener('pointerdown',() => seeking=true);$('seek').addEventListener('input',e => {seekTo(Number(e.target.value));setFollowing(true,false);});
-  const finishSeek=() => {if(!seeking)return;seeking=false;refresh();persist();};$('seek').addEventListener('change',finishSeek);window.addEventListener('pointerup',finishSeek);window.addEventListener('pointercancel',finishSeek);
-  $('search').addEventListener('input',e => {query=e.target.value.trim().toLocaleLowerCase();renderLibrary();$('library-scroll').scrollTop=0;});
-  $('clear-search').addEventListener('click',() => {$('search').value='';query='';renderLibrary();$('search').focus();});
-  $('sort').value=sortOrder;
-  $('sort').addEventListener('change',e => {
-    sortOrder=e.target.value;renderLibrary();$('library-scroll').scrollTop=0;
-    const ids=eligible().map(t=>t.id);if(!current||ids.includes(current.id)){queue=ids;updateQueue();}
-    persist();
-  });
-  document.querySelectorAll('.filter').forEach(b => b.addEventListener('click',() => {category=b.dataset.category;document.querySelectorAll('.filter').forEach(x => x.setAttribute('aria-pressed',String(x===b)));renderLibrary();$('library-scroll').scrollTop=0;}));
-  function updateSpeed(){audio.defaultPlaybackRate=speed;audio.playbackRate=speed;$('speed').textContent=speed+'×';$('speed').setAttribute('aria-label',`播放速度 ${speed} 倍，点击选择`);document.querySelectorAll('[data-speed]').forEach(b => b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===speed)));persist();}
-  $('speed').addEventListener('click',() => {$('speed-menu').showModal();$('speed').setAttribute('aria-expanded','true');$('speed-menu').querySelector(`[data-speed="${speed}"]`)?.focus();});
-  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click',() => {speed=Number(b.dataset.speed);updateSpeed();if($('speed-menu').open)$('speed-menu').close();}));
-  $('close-speeds').addEventListener('click',() => $('speed-menu').close());
-  $('speed-menu').addEventListener('click',e => {if(e.target===$('speed-menu')){const r=$('speed-menu').getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)$('speed-menu').close();}});
-  $('speed-menu').addEventListener('close',() => {$('speed').setAttribute('aria-expanded','false');$('speed').focus({preventScroll:true});});
-  $('more').addEventListener('click',() => {$('settings').showModal();$('more').setAttribute('aria-expanded','true');});$('close-settings').addEventListener('click',() => $('settings').close());
-  $('settings').addEventListener('click',e => {if(e.target===$('settings')){const r=$('settings').getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)$('settings').close();}});
-  $('settings').addEventListener('close',() => {$('more').setAttribute('aria-expanded','false');$('more').focus({preventScroll:true});});
-  $('mode-button').addEventListener('click',() => {$('mode-menu').showModal();$('mode-button').setAttribute('aria-expanded','true');$('mode-menu').querySelector(`[data-play-mode="${playMode}"]`)?.focus();});
-  $('close-modes').addEventListener('click',() => $('mode-menu').close());
-  $('mode-menu').addEventListener('click',e => {if(e.target===$('mode-menu')){const r=$('mode-menu').getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)$('mode-menu').close();}});
-  $('mode-menu').addEventListener('close',() => {$('mode-button').setAttribute('aria-expanded','false');$('mode-button').focus({preventScroll:true});});
-  document.querySelectorAll('[data-play-mode]').forEach(b=>b.addEventListener('click',()=>{playMode=b.dataset.playMode;shuffleBag=[];shuffleHistory=current?[current.id]:[];shuffleCursor=current?0:-1;updatePlayMode();if($('mode-menu').open)$('mode-menu').close();}));
-  $('volume').value=audio.volume;$('volume').style.setProperty('--progress',audio.volume*100+'%');$('volume').addEventListener('input',e => {audio.volume=Number(e.target.value);e.target.style.setProperty('--progress',audio.volume*100+'%');persist();});
-  if('ResizeObserver' in window)new ResizeObserver(layoutLyrics).observe(scroller);else window.addEventListener('resize',layoutLyrics);
-  window.addEventListener('pagehide',persist);document.addEventListener('visibilitychange',() => {if(document.hidden)persist();});
-  document.addEventListener('keydown',e => {if((e.ctrlKey||e.metaKey)&&['+','-','=','0'].includes(e.key)){e.preventDefault();return;}if(e.key==='Escape' && mobile.matches && document.body.dataset.view==='player'&&!$('settings').open&&!$('speed-menu').open&&!$('mode-menu').open)returnLibrary();if($('settings').open||$('speed-menu').open||$('mode-menu').open||['INPUT','BUTTON','TEXTAREA'].includes(document.activeElement?.tagName))return;
-    if(e.code==='Space'){e.preventDefault();togglePlayback();}if(e.key==='ArrowLeft'){e.preventDefault();seekTo(audio.currentTime-15);}if(e.key==='ArrowRight'){e.preventDefault();seekTo(audio.currentTime+15);}});
-  if('mediaSession' in navigator)Object.entries({play:playAudio,pause:() => audio.pause(),previoustrack:() => changeTrack(-1),nexttrack:() => changeTrack(1),seekto:e => seekTo(e.seekTime),seekbackward:e => seekTo(audio.currentTime-(e.seekOffset||15)),seekforward:e => seekTo(audio.currentTime+(e.seekOffset||15))}).forEach(([key,fn]) => {try{navigator.mediaSession.setActionHandler(key,fn);}catch(_){}});
-  window.CastleSceneState=() => ({playing:!audio.paused,visible:!document.hidden&&(!mobile.matches||document.body.dataset.view==='player'),full:reading==='full',category:current?.category||'letter',level:() => {if(!analyser)return 0;analyser.getByteFrequencyData(spectrum);return spectrum.reduce((a,b) => a+b,0)/spectrum.length/255;}});
-  const minutes=Math.round(tracks.reduce((n,t)=>n+t.duration,0)/60);$('library-stats').textContent=`${tracks.length} 篇声音 · ${Math.floor(minutes/60)} 小时 ${minutes%60} 分钟`;
-  $('all-count').textContent=tracks.length;$('letter-count').textContent=tracks.filter(t=>t.category==='letter').length;$('story-count').textContent=tracks.filter(t=>t.category==='story').length;
-  renderLibrary();updateSpeed();queue=eligible().map(t=>t.id);updatePlayMode();
-  const linked=location.hash.startsWith('#listen=')?decodeLink(location.hash.slice(8)):null;
-  if(linked&&tracks.some(t=>t.id===linked)){selectTrack(linked);setView('player');}
-  else {if(saved.current&&tracks.some(t=>t.id===saved.current))selectTrack(saved.current);else if(!mobile.matches)selectTrack(eligible()[0].id);setView('library');}
-  scheduleDayRefresh();
+  function linkedTrack() {try{return tracks.find(t=>t.id===decodeURIComponent(location.hash.replace(/^#listen=/,'')));}catch(_){return null;}}
+  window.addEventListener('popstate',() => {const t=location.hash.startsWith('#listen=')?linkedTrack():null;if(t){select(t);openPlayer(false);}else if(player.open){closingFromHistory=true;player.close();}});
+  audio.addEventListener('loadedmetadata',() => {if(!ready())return;if(pendingSeek!==null){audio.currentTime=Math.min(pendingSeek,Math.max(0,audio.duration-.05));pendingSeek=null;}audio.playbackRate=speed;updateProgress();refreshReader(audio.currentTime,true);});
+  audio.addEventListener('play',updatePlay);audio.addEventListener('pause',() => {updatePlay();persist();});
+  audio.addEventListener('timeupdate',() => {updateProgress();if(Date.now()-lastSave>4000){persist();lastSave=Date.now();}if('mediaSession' in navigator&&navigator.mediaSession.setPositionState&&ready())try{navigator.mediaSession.setPositionState({duration:audio.duration,position:audio.currentTime,playbackRate:audio.playbackRate});}catch(_){} });
+  audio.addEventListener('error',() => {if(current)notify('音频加载失败，请点击播放重试。');});audio.addEventListener('ended',() => {positions[current.id]=0;updatePlay();next(1,true);});
+  for(const id of ['play','player-play'])$(id).addEventListener('click',togglePlay);
+  for(const id of ['next','player-next'])$(id).addEventListener('click',()=>next());$('prev').addEventListener('click',()=>next(-1));
+  $('rewind').addEventListener('click',()=>seekTo(playbackPosition()-15));$('forward').addEventListener('click',()=>seekTo(playbackPosition()+15));
+  for(const id of ['desktop-seek','player-seek'])$(id).addEventListener('input',e=>seekTo(e.target.value));
+  $('play-all').addEventListener('click',() => {const items=eligible();if(!items.length)return;queue=items.map(t=>t.id);mode='sequential';select(items[0],true);resetShuffle();updateMode();openPlayer();play();});
+  $('shuffle-all').addEventListener('click',() => {const items=eligible();if(!items.length)return;queue=items.map(t=>t.id);mode='random';select(items[Math.floor(Math.random()*items.length)]);resetShuffle();updateMode();openPlayer();play();});
+  $('open-player').addEventListener('click',()=>openPlayer());
+  for(const id of ['open-queue','player-queue'])$(id).addEventListener('click',()=>{if(player.open)player.close();$('section-title').scrollIntoView({behavior:motion.matches?'auto':'smooth'});});
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+  document.querySelectorAll('.sheet').forEach(sheet=>sheet.addEventListener('click',e=>{if(e.target===sheet){const r=sheet.getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)sheet.close();}}));
+  function showSheet(id,opener) {$(id).showModal();opener.setAttribute('aria-expanded','true');}
+  for(const [button,sheet] of [['sort','sort-sheet'],['speed','speed-sheet'],['mode','mode-sheet'],['volume-button','volume-sheet']]){$(button).addEventListener('click',()=>showSheet(sheet,$(button)));$(sheet).addEventListener('close',()=>{$(button).setAttribute('aria-expanded','false');$(button).focus({preventScroll:true});});}
+  function updateSort() {const labels={newest:'最新在前',oldest:'最早在前',sequence:'按编号'};$('sort').innerHTML='<span>'+labels[sort]+'</span>'+icon('down');document.querySelectorAll('[data-sort]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sort===sort)));}
+  document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{sort=b.dataset.sort;updateSort();render();adoptQueue(eligible());persist();$('sort-sheet').close();}));
+  function updateSpeed() {audio.defaultPlaybackRate=speed;audio.playbackRate=speed;$('speed').textContent=speed+'×';$('speed').setAttribute('aria-label','播放速度 '+speed+' 倍，点击选择');document.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===speed)));}
+  document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click',()=>{speed=Number(b.dataset.speed);updateSpeed();persist();$('speed-sheet').close();}));
+  function updateMode() {$('mode').innerHTML=icon(modeIcons[mode])+'<span>'+names[mode]+'</span>';$('mode').setAttribute('aria-label','播放模式，当前'+names[mode]);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));updateQueue();persist();}
+  document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;resetShuffle();updateMode();$('mode-sheet').close();}));
+  document.querySelectorAll('[data-category]').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.category;document.querySelectorAll('[data-category]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render();adoptQueue(eligible());}));
+  $('search').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();render();});$('clear').addEventListener('click',()=>{$('search').value='';query='';render();$('search').focus();});
+  audio.volume=Number.isFinite(saved.volume)?Math.max(0,Math.min(1,saved.volume)):1;
+  function updateVolume() {$('volume').value=audio.volume;$('volume').style.setProperty('--progress',audio.volume*100+'%');$('volume-value').textContent=Math.round(audio.volume*100)+'%';}
+  $('volume').addEventListener('input',e=>{audio.volume=Number(e.target.value);updateVolume();persist();});
+  let manualTheme=false;
+  function setTheme(theme,remember=false) {document.documentElement.dataset.theme=theme;document.querySelectorAll('button[data-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.theme===theme)));document.querySelector('meta[name="theme-color"]').content=theme==='dark'?'#1d2220':'#faf8f5';if(remember){manualTheme=true;try{localStorage.setItem(themeKey,theme);}catch(_){}}window.dispatchEvent(new Event('theme-change'));}
+  let initialTheme=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';try{const value=localStorage.getItem(themeKey);if(['light','dark'].includes(value)){initialTheme=value;manualTheme=true;}}catch(_){}
+  document.querySelectorAll('button[data-theme]').forEach(b=>b.addEventListener('click',()=>setTheme(b.dataset.theme,true)));setTheme(initialTheme);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change',e=>{if(!manualTheme)setTheme(e.matches?'dark':'light');});
+  document.querySelectorAll('button[data-reading]').forEach(b=>b.addEventListener('click',()=>setReading(b.dataset.reading)));
+  $('reader-follow').addEventListener('click',()=>{following=!following;updateFollow();if(following)scrollCurrent();});
+  for(const name of ['wheel','touchmove'])reader.addEventListener(name,()=>{if(following){following=false;updateFollow();}},{passive:true});
+  reader.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){following=false;updateFollow();}});
+  new ResizeObserver(()=>{if(player.open&&following)scrollCurrent(false);}).observe(reader);
+  ['gesturestart','gesturechange','gestureend'].forEach(name=>document.addEventListener(name,e=>e.preventDefault(),{passive:false}));
+  document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});document.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['+','-','=','0'].includes(e.key)){e.preventDefault();return;}if(['INPUT','BUTTON','TEXTAREA'].includes(document.activeElement?.tagName)||document.querySelector('.sheet[open]'))return;if(e.code==='Space'){e.preventDefault();togglePlay();}if(e.key==='ArrowLeft'){e.preventDefault();seekTo(playbackPosition()-15);}if(e.key==='ArrowRight'){e.preventDefault();seekTo(playbackPosition()+15);}});
+  if('mediaSession' in navigator)Object.entries({play,pause:()=>audio.pause(),previoustrack:()=>next(-1),nexttrack:()=>next(),seekto:e=>seekTo(e.seekTime),seekbackward:e=>seekTo(playbackPosition()-(e.seekOffset||15)),seekforward:e=>seekTo(playbackPosition()+(e.seekOffset||15))}).forEach(([name,fn])=>{try{navigator.mediaSession.setActionHandler(name,fn);}catch(_){}});
+  function refreshDay() {if(lastDay!==day()){lastDay=day();render();if(current)for(const id of ['mini-title','now-title','player-title'])titleFor(id);}clearTimeout(dayTimer);dayTimer=setTimeout(refreshDay,86400000-((Date.now()+8*3600000)%86400000)+100);}
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();else refreshDay();});window.addEventListener('pagehide',persist);
+  const letters=tracks.filter(t=>t.category==='letter').length,stories=tracks.length-letters,minutes=Math.round(tracks.reduce((sum,t)=>sum+t.duration,0)/60);
+  document.querySelector('.album-caption>span').textContent=letters+' 封信件 · '+stories+' 个故事';$('total-duration').textContent=Math.floor(minutes/60)+' 小时 '+minutes%60+' 分钟';
+  document.querySelectorAll('[data-category]>span').forEach(span=>span.textContent=span.parentElement.dataset.category==='all'?tracks.length:span.parentElement.dataset.category==='letter'?letters:stories);
+  queue=eligible().map(t=>t.id);const linked=location.hash.startsWith('#listen=')?linkedTrack():null;
+  select(linked||tracks.find(t=>t.id===saved.current)||eligible()[0]);resetShuffle();updateSort();updateSpeed();updateVolume();setReading(reading);render();updateMode();updatePlay();refreshDay();if(linked)openPlayer(false);
 })();
