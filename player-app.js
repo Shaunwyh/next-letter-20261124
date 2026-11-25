@@ -16,6 +16,7 @@
   const icon = n => `<svg class="icon" aria-hidden="true"><use href="#i-${n}"/></svg>`;
   const format = (s, round = false) => { const n = Math.max(0, round ? Math.round(s || 0) : Math.floor(s || 0)); return `${Math.floor(n/60).toString().padStart(2,'0')}:${(n%60).toString().padStart(2,'0')}`; };
   const kind = t => t.category === 'letter' ? 'letter 💌' : '故事';
+  const timestamp = t => t.fileTimestamp.slice(0,19).replace('T',' ').replaceAll('-','.');
   const duration = () => Number.isFinite(audio.duration) && audio.currentSrc === new URL(current?.audio || '',location.href).href ? audio.duration : current?.duration || 0;
   const behavior = () => motion.matches ? 'auto' : 'smooth';
   const eligible = () => ordered.filter(t => category === 'all' || t.category === category);
@@ -48,12 +49,12 @@
     items.forEach(t => {
       const row = document.createElement('div'); row.setAttribute('role','listitem');
       const b = document.createElement('button'); b.type = 'button'; b.className = `library-track is-${t.category}`; b.dataset.track = t.id;
-      b.setAttribute('aria-label',`播放${kind(t)} ${t.sequence}，《${t.title}》，文件日期 ${t.fileDate}，时长 ${format(t.duration,true)}`);
+      b.setAttribute('aria-label',`播放${kind(t)} ${t.sequence}，《${t.title}》，${timestamp(t)}，时长 ${format(t.duration,true)}`);
       const cover = document.createElement('span'); cover.className = 'track-cover'; cover.setAttribute('aria-hidden','true'); cover.innerHTML = t.category === 'letter' ? icon('letter') : String(t.sequence).padStart(2,'0');
       const info = document.createElement('span'); info.className = 'track-info';
       const name = document.createElement('span'); name.className = 'track-title'; name.textContent = t.title;
       const detail = document.createElement('span'); detail.className = 'track-detail';
-      const date = document.createElement('span'); date.textContent = `文件日期 ${t.fileDate.replaceAll('-','.')}`;
+      const date = document.createElement('time'); date.dateTime = t.fileTimestamp; date.textContent = timestamp(t);
       const time = document.createElement('span'); time.className = 'track-duration'; time.textContent = format(t.duration,true); detail.append(date,time); info.append(name,detail);
       const arrow = document.createElement('span'); arrow.className = 'track-arrow'; arrow.setAttribute('aria-hidden','true'); arrow.innerHTML = icon('arrow');
       b.append(cover,info,arrow); row.append(b); list.append(row);
@@ -164,7 +165,7 @@
     const remembered=Number(positions[id])||0;pendingSeek=remembered>=t.duration-2?0:Math.max(0,Math.min(remembered,t.duration));
     document.body.classList.add('has-current');$('mini-player').hidden=false;
     $('current-title').textContent=t.title;$('now-title').textContent=t.title;$('current-category').textContent=kind(t);$('scene-number').textContent=String(t.sequence).padStart(2,'0');
-    $('current-detail').textContent=`文件日期 ${t.fileDate.replaceAll('-','.')} · ${format(t.duration,true)}`;
+    $('current-detail').textContent=`${timestamp(t)} · ${format(t.duration,true)}`;
     $('open-current').setAttribute('aria-label',`返回《${t.title}》的播放页`);$('mini-cover').innerHTML=icon(t.category==='letter'?'letter':'moon');$('scene').dataset.kind=t.category;
     setFollowing(reading==='immersive',false);renderCues();audio.src=t.audio;audio.load();audio.playbackRate=speed;refresh(pendingSeek,true,'auto');updatePlayback();updateQueue();
     if(location.hash.startsWith('#listen='))history.replaceState(history.state,'',`#listen=${encodeURIComponent(id)}`);
