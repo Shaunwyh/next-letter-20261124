@@ -105,3 +105,40 @@ button:disabled{opacity:.28;cursor:default}
 .volume-control output{font-size:12px;min-width:35px;text-align:right;color:var(--sub)}
 .toast{position:fixed;z-index:100;bottom:100px;left:50%;transform:translateX(-50%);padding:12px 18px;border-radius:14px;background:var(--text);color:var(--bg);font-size:13px;max-width:calc(100% - 40px);box-shadow:0 8px 30px var(--shadow)}
 .seek{touch-action:none}
+
+/* Three equal tool cells share icon size, baseline, and touch target. */
+.player-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);min-height:61px}
+.player-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;height:52px;min-height:52px;padding:3px 0;border-radius:12px}
+.player-options button:hover{background:color-mix(in srgb,var(--text) 4%,transparent)}
+.player-options button>.icon{width:22px;height:22px;stroke-width:1.7;fill:none;color:var(--sub)}
+.player-options .option-label{font-size:11px;line-height:14px;font-weight:500;white-space:nowrap;color:var(--sub)}
+
+/* Keep the story number legible, including while the story is playing. */
+.track-art{font-weight:600}
+.track-row[aria-current=true] .track-art{color:#553329;box-shadow:inset 0 0 0 1px rgba(103,67,48,.20)}
+:root[data-theme=dark] .track-art{background:linear-gradient(145deg,#495046,#333a32);color:#eee6d5;box-shadow:inset 0 1px rgba(239,231,210,.12)}
+:root[data-theme=dark] .track-art.is-letter{background:linear-gradient(145deg,#58433e,#3e302b);color:#f3ddce}
+:root[data-theme=dark] .track-art.tone-1{background:linear-gradient(145deg,#455543,#344233);color:#e4ebd8}
+:root[data-theme=dark] .track-art.tone-2{background:linear-gradient(145deg,#5e4840,#43332d);color:#f8eadb}
+:root[data-theme=dark] .track-art.tone-3{background:linear-gradient(145deg,#5d5034,#403928);color:#f4e9c4}
+:root[data-theme=dark] .track-art.tone-4{background:linear-gradient(145deg,#55554a,#3e4138);color:#ece9d3}
+:root[data-theme=dark] .track-row[aria-current=true] .track-art{color:#fff0db;box-shadow:inset 0 0 0 1px rgba(238,207,166,.32)}
+.cover-playing{position:absolute;bottom:3px;right:3px;display:flex;align-items:center;justify-content:center;gap:1.5px;height:11px;width:13px;border-radius:3px;background:rgba(42,28,22,.8);color:#fff0db}
+.cover-playing i{width:1.5px;height:6px;border-radius:1px;background:currentColor;animation:cover-bars .65s ease-in-out infinite alternate}
+.cover-playing i:nth-child(2){height:8px;animation-delay:-.35s}.cover-playing i:nth-child(3){height:4px;animation-delay:-.15s}
+@keyframes cover-bars{to{height:2px}}
+.track-meta{font-size:10.5px}
+
+/* The daytime stage uses warmer shade behind the princess's arms. */
+:root{--scene-top:#efd3b5;--scene-side:#dfb99a;--scene-bottom:#bd8d75;--scene-shade:#c49079}
+:root[data-theme=dark]{--scene-top:#516454;--scene-side:#435945;--scene-bottom:#2a4036;--scene-shade:#344c3e}
+.album-art{background:radial-gradient(ellipse at 88% 52%,var(--scene-shade),transparent 70%),radial-gradient(ellipse at 24% 15%,var(--scene-top),transparent 68%),linear-gradient(135deg,var(--scene-side),var(--scene-bottom))}
+.day-sun{position:absolute;z-index:5;top:24px;right:25px;width:28px;height:28px;color:#fff1c6;pointer-events:none;filter:drop-shadow(0 0 11px rgba(255,225,158,.7));opacity:1;transition:opacity .6s;animation:sun-glow 5s ease-in-out infinite}
+.day-sun:before{content:'';position:absolute;inset:-20px;border-radius:50%;background:radial-gradient(rgba(255,229,175,.26),transparent 68%);z-index:-1}
+.day-sun svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}.day-sun circle{fill:currentColor;stroke:none}
+:root[data-theme=dark] .day-sun,[data-bedtime=true] .day-sun{opacity:0;animation:none}
+.art-clock{color:#715842}
+:root[data-theme=dark] .art-clock{color:#d3d1b9}
+@keyframes sun-glow{0%,100%{filter:drop-shadow(0 0 8px rgba(255,225,158,.45))}50%{filter:drop-shadow(0 0 14px rgba(255,225,158,.8))}}
+@media(max-width:899px){.day-sun{top:18px;right:20px;width:22px;height:22px}}
+@media(prefers-reduced-motion:reduce){.cover-playing i,.day-sun{animation:none!important}}

@@ -1,9 +1,10 @@
 const dateFormatter=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+const weekdayFormatter=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',weekday:'short'});
 
 export function clockState(date=new Date()){
   const parts=Object.fromEntries(dateFormatter.formatToParts(date).map(p=>[p.type,p.value]));
   const hour=Number(parts.hour);
-  return {date:`${parts.year}.${parts.month}.${parts.day}`,time:`${parts.hour}:${parts.minute}:${parts.second}`,isBedtime:hour>=2&&hour<5,hour};
+  return {date:`${parts.year}.${parts.month}.${parts.day} ${weekdayFormatter.format(date)}`,time:`${parts.hour}:${parts.minute}:${parts.second}`,isBedtime:hour>=2&&hour<5,hour};
 }
 
 if(typeof document!=='undefined'){

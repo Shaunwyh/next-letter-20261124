@@ -1,3 +1,5 @@
+import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-15';
+
 (() => {
   'use strict';
   const $ = id => document.getElementById(id), tracks = window.CASTLE_LIBRARY || [];
@@ -15,13 +17,12 @@
   let speed = [0.5,1,1.5,2].includes(saved.speed) ? saved.speed : 1;
   let reading = saved.reading === 'full' ? 'full' : 'immersive', following = reading === 'immersive';
   let cueElements = [], activeCue = -1, queue = [], shuffleBag = [], shuffleHistory = [], shuffleCursor = -1;
-  let closingFromHistory = false, lastSave = 0, toastTimer, dayTimer, lastDay;
+  let closingFromHistory = false, lastSave = 0, toastTimer, badgeTimer;
   const icon = name => '<svg class="icon" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
   const format = n => {n = Math.max(0,Math.floor(n || 0));return String(Math.floor(n/60)).padStart(2,'0') + ':' + String(n%60).padStart(2,'0');};
-  const date = t => t.fileTimestamp.slice(0,19).replace('T',' ').replaceAll('-','.');
-  const day = () => new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  const newToday = t => !!t.publishedAt && t.publishedAt.slice(0,10) === day();
-  const badge = () => {const b=document.createElement('span');b.className='new-badge';b.textContent='新';b.setAttribute('aria-label','今天新增');return b;};
+  const date = t => formatLibraryTimestamp(t.fileTimestamp);
+  const isNew = t => isRecentUpload(t.publishedAt);
+  const badge = () => {const b=document.createElement('span');b.className='new-badge';b.textContent='新';b.setAttribute('aria-label','上传未满6小时');return b;};
   const notify = text => {$('toast').textContent=text;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(() => $('toast').hidden=true,4000);};
   if (!tracks.length) {notify('内容未能加载，请刷新后重试。');return;}
   const eligible = () => tracks.filter(t => (category==='all'||t.category===category) && (!query||(t.title+' '+(t.category==='letter'?'letter':'故事')+' '+String(t.sequence).padStart(2,'0')).toLowerCase().includes(query))).sort((a,b) => {
@@ -46,7 +47,7 @@
       const art=document.createElement('span');art.className='track-art '+(t.category==='letter'?'is-letter':'tone-'+t.sequence%5);art.setAttribute('aria-hidden','true');
       art.innerHTML=t.category==='letter'?icon('letter'):String(t.sequence).padStart(2,'0');
       const info=document.createElement('span');info.className='track-info';
-      const name=document.createElement('span');name.className='track-name';const title=document.createElement('span');title.className='track-title';title.textContent=t.title;name.append(title);if(newToday(t))name.append(badge());
+      const name=document.createElement('span');name.className='track-name';const title=document.createElement('span');title.className='track-title';title.textContent=t.title;name.append(title);if(isNew(t))name.append(badge());
       const meta=document.createElement('time');meta.className='track-meta';meta.dateTime=t.fileTimestamp;meta.textContent=date(t);
       info.append(name,meta);const length=document.createElement('span');length.className='track-length';length.textContent=format(Math.round(t.duration));
       row.append(art,info,length);const item=document.createElement('div');item.setAttribute('role','listitem');item.append(row);$('tracks').append(item);
@@ -58,10 +59,12 @@
     document.querySelectorAll('.track-row').forEach(row => {
       const t=tracks.find(t=>t.id===row.dataset.track);const selected=t.id===current?.id;
       if(selected)row.setAttribute('aria-current','true');else row.removeAttribute('aria-current');
-      row.querySelector('.track-art').innerHTML=selected&&!audio.paused?'<span class="equalizer"><i></i><i></i><i></i></span>':t.category==='letter'?icon('letter'):String(t.sequence).padStart(2,'0');
+      const art=row.querySelector('.track-art');
+      art.innerHTML=t.category==='letter'?icon('letter'):String(t.sequence).padStart(2,'0');
+      if(selected&&!audio.paused)art.insertAdjacentHTML('beforeend','<span class="cover-playing" aria-hidden="true"><i></i><i></i><i></i></span>');
     });
   }
-  function titleFor(id) {$(id).textContent=current.title;if(newToday(current))$(id).append(badge());}
+  function titleFor(id) {$(id).textContent=current.title;if(isNew(current))$(id).append(badge());}
   function renderReader() {
     reader.replaceChildren();cueElements=[];activeCue=-1;let previous,paragraph;
     for(const [i,cue] of (current.cues||[]).entries()) {
@@ -170,9 +173,9 @@
   for(const [button,sheet] of [['sort','sort-sheet'],['speed','speed-sheet'],['mode','mode-sheet'],['volume-button','volume-sheet']]){$(button).addEventListener('click',()=>showSheet(sheet,$(button)));$(sheet).addEventListener('close',()=>{$(button).setAttribute('aria-expanded','false');$(button).focus({preventScroll:true});});}
   function updateSort() {const labels={newest:'最新在前',oldest:'最早在前',sequence:'按编号'};$('sort').innerHTML='<span>'+labels[sort]+'</span>'+icon('down');document.querySelectorAll('[data-sort]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sort===sort)));}
   document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{sort=b.dataset.sort;updateSort();render();adoptQueue(eligible());persist();$('sort-sheet').close();}));
-  function updateSpeed() {audio.defaultPlaybackRate=speed;audio.playbackRate=speed;$('speed').textContent=speed+'×';$('speed').setAttribute('aria-label','播放速度 '+speed+' 倍，点击选择');document.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===speed)));}
+  function updateSpeed() {audio.defaultPlaybackRate=speed;audio.playbackRate=speed;$('speed').innerHTML=icon('speed')+'<span class="option-label">倍速 '+speed+'×</span>';$('speed').setAttribute('aria-label','播放速度 '+speed+' 倍，点击选择');document.querySelectorAll('[data-speed]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.speed)===speed)));}
   document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click',()=>{speed=Number(b.dataset.speed);updateSpeed();persist();$('speed-sheet').close();}));
-  function updateMode() {$('mode').innerHTML=icon(modeIcons[mode])+'<span>'+names[mode]+'</span>';$('mode').setAttribute('aria-label','播放模式，当前'+names[mode]);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));updateQueue();persist();}
+  function updateMode() {$('mode').innerHTML=icon(modeIcons[mode])+'<span class="option-label">'+names[mode]+'</span>';$('mode').setAttribute('aria-label','播放模式，当前'+names[mode]);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));updateQueue();persist();}
   document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;resetShuffle();updateMode();$('mode-sheet').close();}));
   document.querySelectorAll('[data-category]').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.category;document.querySelectorAll('[data-category]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render();adoptQueue(eligible());}));
   $('search').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();render();});$('clear').addEventListener('click',()=>{$('search').value='';query='';render();$('search').focus();});
@@ -193,11 +196,21 @@
   document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});document.addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault();},{passive:false});
   document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['+','-','=','0'].includes(e.key)){e.preventDefault();return;}if(['INPUT','BUTTON','TEXTAREA'].includes(document.activeElement?.tagName)||document.querySelector('.sheet[open]'))return;if(e.code==='Space'){e.preventDefault();togglePlay();}if(e.key==='ArrowLeft'){e.preventDefault();seekTo(playbackPosition()-15);}if(e.key==='ArrowRight'){e.preventDefault();seekTo(playbackPosition()+15);}});
   if('mediaSession' in navigator)Object.entries({play,pause:()=>audio.pause(),previoustrack:()=>next(-1),nexttrack:()=>next(),seekto:e=>seekTo(e.seekTime),seekbackward:e=>seekTo(playbackPosition()-(e.seekOffset||15)),seekforward:e=>seekTo(playbackPosition()+(e.seekOffset||15))}).forEach(([name,fn])=>{try{navigator.mediaSession.setActionHandler(name,fn);}catch(_){}});
-  function refreshDay() {if(lastDay!==day()){lastDay=day();render();if(current)for(const id of ['mini-title','now-title','player-title'])titleFor(id);}clearTimeout(dayTimer);dayTimer=setTimeout(refreshDay,86400000-((Date.now()+8*3600000)%86400000)+100);}
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();else refreshDay();});window.addEventListener('pagehide',persist);
+  function refreshFreshness() {
+    // Update badges without replacing rows or disturbing focus and scroll position.
+    document.querySelectorAll('.track-row').forEach(row=>{
+      const track=tracks.find(t=>t.id===row.dataset.track),name=row.querySelector('.track-name'),existing=name.querySelector('.new-badge');
+      if(isNew(track)){if(!existing)name.append(badge());}else existing?.remove();
+    });
+    if(current)for(const id of ['mini-title','now-title','player-title'])titleFor(id);
+    clearTimeout(badgeTimer);
+    const now=Date.now(),changes=tracks.flatMap(t=>{const uploaded=Date.parse(t.publishedAt);return [uploaded,uploaded+RECENT_UPLOAD_MS];}).filter(time=>Number.isFinite(time)&&time>now);
+    if(changes.length)badgeTimer=setTimeout(refreshFreshness,Math.max(1,Math.min(...changes)-now+10));
+  }
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();else refreshFreshness();});window.addEventListener('pagehide',persist);
   const letters=tracks.filter(t=>t.category==='letter').length,stories=tracks.length-letters,minutes=Math.round(tracks.reduce((sum,t)=>sum+t.duration,0)/60);
   document.querySelector('.album-caption>span').textContent=letters+' 封信件 · '+stories+' 个故事';$('total-duration').textContent=Math.floor(minutes/60)+' 小时 '+minutes%60+' 分钟';
   document.querySelectorAll('[data-category]>span').forEach(span=>span.textContent=span.parentElement.dataset.category==='all'?tracks.length:span.parentElement.dataset.category==='letter'?letters:stories);
   queue=eligible().map(t=>t.id);const linked=location.hash.startsWith('#listen=')?linkedTrack():null;
-  select(linked||tracks.find(t=>t.id===saved.current)||eligible()[0]);resetShuffle();updateSort();updateSpeed();updateVolume();setReading(reading);render();updateMode();updatePlay();refreshDay();if(linked)openPlayer(false);
+  select(linked||tracks.find(t=>t.id===saved.current)||eligible()[0]);resetShuffle();updateSort();updateSpeed();updateVolume();setReading(reading);render();updateMode();updatePlay();refreshFreshness();if(linked)openPlayer(false);
 })();

@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import './castle-clock.js';
+import './castle-clock.js?v=castle-15';
 const canvas=document.getElementById('cake-canvas'),host=canvas.parentElement;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let renderer;
@@ -10,7 +10,7 @@ const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-2,2,2,-2,.1,4
 const studio=new THREE.Scene();studio.background=new THREE.Color('#e8d5bd');
 for(const [x,y,z,s,c] of [[-6,5,3,7,'#fff9ec'],[5,3,-2,5,'#e2baa0'],[0,8,0,9,'#fffefa']]){const p=new THREE.Mesh(new THREE.SphereGeometry(s,12,12),new THREE.MeshBasicMaterial({color:c,side:THREE.BackSide}));p.position.set(x,y,z);studio.add(p);}
 const pmrem=new THREE.PMREMGenerator(renderer),env=pmrem.fromScene(studio,.025).texture;scene.environment=env;
-scene.add(new THREE.HemisphereLight('#fff5df','#94745e',1.25));
+const ambient=new THREE.HemisphereLight('#fff5df','#94745e',1.05);scene.add(ambient);
 const key=new THREE.DirectionalLight('#fff3dc',2.3);key.position.set(-3,6,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-4;key.shadow.camera.right=4;key.shadow.camera.top=4;key.shadow.camera.bottom=-4;key.shadow.normalBias=.025;key.shadow.bias=-.0005;key.shadow.radius=5;scene.add(key);
 const rim=new THREE.DirectionalLight('#f5c8b0',1.1);rim.position.set(3,3,-4);scene.add(rim);
 const material=(color,roughness=.43,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
@@ -49,7 +49,8 @@ bakeStaticGroup(cake);
 // A porcelain miniature princess shares the stage with the cake.
 cake.scale.setScalar(.76);cake.position.set(-.84,.025,0);
 const princess=new THREE.Group();scene.add(princess);princess.position.set(.91,.04,-.20);princess.rotation.y=.34;
-const skin=material('#e7b79a',.58),hair=material('#55382b',.48),gown=material('#ba7c70',.48),blouse=material('#f5e6cd',.42),cheek=material('#d89282',.65),eyeMat=material('#4b3329',.56);
+const skin=material('#d29b77',.65),hair=material('#55382b',.48),gown=material('#ba7c70',.48),blouse=material('#f5e6cd',.42),cheek=material('#d89282',.65),eyeMat=material('#4b3329',.56);
+skin.envMapIntensity=.45;blouse.envMapIntensity=.65;
 function piece(geo,mat,x,y,z,parent=princess,scale=[1,1,1]){const m=mesh(geo,mat,x,y,z,parent);m.scale.set(...scale);return m;}
 function ball(r,mat,x,y,z,parent=princess,scale=[1,1,1]){return piece(new THREE.SphereGeometry(r,24,20),mat,x,y,z,parent,scale);}
 function hoop(r,tube,mat,x,y,z,parent=princess){const m=piece(new THREE.TorusGeometry(r,tube,10,56),mat,x,y,z,parent);m.rotation.x=Math.PI/2;return m;}
@@ -75,7 +76,7 @@ piece(new THREE.CylinderGeometry(.195,.165,.075,40,1,true),gold,0,.012,0,crown);
 for(let i=0;i<5;i++){const a=i/5*Math.PI*2;piece(new THREE.ConeGeometry(.041,.13,8),gold,.17*Math.cos(a),.10,.17*Math.sin(a),crown);ball(.019,gold,.17*Math.cos(a),.169,.17*Math.sin(a),crown);}
 ball(.025,rose,0,.04,.172,crown,[1,1.15,.45]);
 const leftArm=new THREE.Group(),rightArm=new THREE.Group();princess.add(leftArm,rightArm);leftArm.position.set(-.185,1.20,0);rightArm.position.set(.185,1.20,0);leftArm.rotation.z=-.37;rightArm.rotation.z=.37;
-for(const arm of [leftArm,rightArm]){const raised=arm===rightArm;ball(.065,blouse,0,-.035,0,arm,[1,1.1,1]);piece(new THREE.CapsuleGeometry(.039,raised?.35:.24,6,12),skin,0,raised?-.245:-.19,0,arm);ball(.055,skin,0,raised?-.46:-.35,0,arm,[1,1.14,.85]);}
+for(const arm of [leftArm,rightArm]){const raised=arm===rightArm;ball(.065,blouse,0,-.035,0,arm,[1,1.1,1]);piece(new THREE.CapsuleGeometry(raised?.053:.047,raised?.35:.24,6,12),skin,0,raised?-.245:-.19,0,arm);ball(.063,skin,0,raised?-.46:-.35,0,arm,[1,1.14,.85]);}
 
 // A small cream-and-caramel cat sits in the foreground beside the princess.
 const cat=new THREE.Group();scene.add(cat);cat.position.set(1.48,.035,.95);cat.scale.setScalar(.72);cat.rotation.y=.34;
@@ -125,7 +126,7 @@ for(let i=0;i<12;i++){const mat=sparkleMaterial.clone();const star=piece(starGeo
 let pointer={x:0,y:0},time=0,last=0,visible=true,raf=null,burst=0,bedtime=host.dataset.bedtime==='true',lastDraw=0,greeting=-10;
 host.addEventListener('pointermove',e=>{const r=host.getBoundingClientRect();pointer={x:(e.clientX-r.left)/r.width-.5,y:(e.clientY-r.top)/r.height-.5};},{passive:true});host.addEventListener('pointerleave',()=>{pointer={x:0,y:0};});
 document.getElementById('scene-touch').addEventListener('click',()=>{burst=1;greeting=time;start();});
-const theme=()=>{const dark=document.documentElement.dataset.theme==='dark';key.intensity=dark?2.1:2.3;rim.intensity=dark?1.5:1.1;renderer.toneMappingExposure=1.02;shadow.material.opacity=dark?.16:.10;draw(performance.now());};window.addEventListener('theme-change',theme);
+const theme=()=>{const dark=document.documentElement.dataset.theme==='dark';key.intensity=dark?2.1:1.85;rim.intensity=dark?1.5:.8;ambient.intensity=dark?1.25:1.0;renderer.toneMappingExposure=dark?1.02:.93;skin.color.set(dark?'#e7b79a':'#cc926e');gown.color.set(dark?'#ba7c70':'#ad6c5b');shadow.material.opacity=dark?.16:.14;draw(performance.now());};window.addEventListener('theme-change',theme);
 function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);const aspect=w/h,extent=Math.max(1.67,2.20/aspect);camera.left=-extent*aspect;camera.right=extent*aspect;camera.top=extent;camera.bottom=-extent;camera.lookAt(0,bedtime?.90:1.01,0);camera.updateProjectionMatrix();draw(performance.now());}
 new ResizeObserver(resize).observe(host);
 window.addEventListener('castle-clock-change',e=>{bedtime=e.detail.isBedtime;resize();});
