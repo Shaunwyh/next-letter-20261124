@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import './castle-clock.js?v=castle-15';
+import './castle-clock.js?v=castle-16';
 const canvas=document.getElementById('cake-canvas'),host=canvas.parentElement;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let renderer;

@@ -1,7 +1,11 @@
-import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-15';
+import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-16';
 
 (() => {
   'use strict';
+  // Pointer interaction never inherits the outline from a programmatic focus.
+  // Keyboard navigation still gets an explicit, accessible focus indicator.
+  document.addEventListener('pointerdown',()=>{document.documentElement.dataset.inputMethod='pointer';},{capture:true,passive:true});
+  document.addEventListener('keydown',e=>{if(['Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))document.documentElement.dataset.inputMethod='keyboard';},{capture:true});
   const $ = id => document.getElementById(id), tracks = window.CASTLE_LIBRARY || [];
   const audio = $('audio'), player = $('player-sheet'), reader = $('player-reader');
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
