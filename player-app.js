@@ -1,4 +1,4 @@
-import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-16';
+import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-17';
 
 (() => {
   'use strict';
@@ -167,6 +167,13 @@ import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle
   for(const id of ['next','player-next'])$(id).addEventListener('click',()=>next());$('prev').addEventListener('click',()=>next(-1));
   $('rewind').addEventListener('click',()=>seekTo(playbackPosition()-15));$('forward').addEventListener('click',()=>seekTo(playbackPosition()+15));
   for(const id of ['desktop-seek','player-seek'])$(id).addEventListener('input',e=>seekTo(e.target.value));
+  // Scene replies are explicit taps; start playback in the same user gesture.
+  window.addEventListener('castle-play-request',() => {
+    const stories=tracks.filter(t=>t.category==='story').sort((a,b)=>Date.parse(b.fileTimestamp)-Date.parse(a.fileTimestamp));
+    if(!stories.length)return;
+    if(current?.category!=='story')select(stories[0]);
+    queue=stories.map(t=>t.id);resetShuffle();updateQueue();openPlayer();play();
+  });
   $('play-all').addEventListener('click',() => {const items=eligible();if(!items.length)return;queue=items.map(t=>t.id);mode='sequential';select(items[0],true);resetShuffle();updateMode();openPlayer();play();});
   $('shuffle-all').addEventListener('click',() => {const items=eligible();if(!items.length)return;queue=items.map(t=>t.id);mode='random';select(items[Math.floor(Math.random()*items.length)]);resetShuffle();updateMode();openPlayer();play();});
   $('open-player').addEventListener('click',()=>openPlayer());
