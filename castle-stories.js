@@ -1,59 +1,71 @@
-// Curated little scenes. No chat service or recording is involved.
-export const SCENES = {
-  welcome: [
-    {speaker:'princess',name:'迷湖公主',text:'你来啦，给你留了最好的一块。',pose:'welcome',effect:'welcome',duration:4.2},
-    {speaker:'cat',name:'善逸',text:'盘子推过来了。今天也要甜一点。',pose:'serve',effect:'welcome',duration:4.2},
-    {speaker:'princess',name:'小蛋糕',text:'坐近一点，要不要一起听个故事？',pose:'invite',effect:'welcome',duration:4.4}
+export const SPEAKERS={princess:'迷湖公主',cat:'我妻善逸'};
+
+// Every beat directs both actors and a real prop in the same little story.
+export const STORIES={
+  cake:[
+    {speaker:'princess',text:'我妻善逸，蛋糕怎么少了一角？',princess:'inspect',cat:'freeze',castle:'notice',prop:'cake',duration:4.6},
+    {speaker:'cat',text:'……门刚才动了。会不会是城堡吃的？',princess:'lookDoor',cat:'blameDoor',castle:'rattle',prop:'cake',duration:4.8},
+    {speaker:'princess',text:'那我先把“城堡”嘴边的奶油擦掉。',princess:'wipe',cat:'shy',castle:'spotlight',prop:'wipe',duration:4.6},
+    {speaker:'cat',text:'好吧，是我。下一块，我们一起吃。',princess:'laugh',cat:'offer',castle:'serve',prop:'serve',duration:4.4},
+    {speaker:'princess',text:'成交。也给屏幕前的你留一块。',princess:'invite',cat:'welcome',castle:'celebrate',prop:'share',duration:4.4}
   ],
-  mischief: [
-    {speaker:'cat',name:'咪了个咪',text:'我只是来检查一下甜度。',pose:'taste',effect:'mischief',duration:3.8},
-    {speaker:'princess',name:'迷湖宝宝',text:'善逸，那你胡子上怎么有奶油？',pose:'tease',effect:'mischief',duration:4},
-    {speaker:'cat',name:'喵',text:'这是……工作痕迹。',pose:'caught',effect:'crumbs',duration:4.2}
+  stars:[
+    {speaker:'cat',text:'迷湖公主，屋顶那颗星星跑下来了！',princess:'followStar',cat:'chase',castle:'starAway',prop:'fallingStar',duration:4.6},
+    {speaker:'princess',text:'你接下面，我接上面。别让它摔着。',princess:'catch',cat:'catchLow',castle:'starAway',prop:'catchStar',duration:4.4},
+    {speaker:'cat',text:'接到了！可是……我够不到屋顶。',princess:'takeStar',cat:'holdStar',castle:'waiting',prop:'holdStar',duration:4.4},
+    {speaker:'princess',text:'借我一下。你看，它回家了。',princess:'returnStar',cat:'lookUp',castle:'starHome',prop:'returnStar',duration:4.8},
+    {speaker:'cat',text:'灯都亮了！刚才那下配合，真不错。',princess:'laugh',cat:'welcome',castle:'celebrate',prop:'roofStar',duration:4.4}
   ],
-  starlight: [
-    {speaker:'cat',name:'我妻善逸',text:'小蛋糕，月亮上班了，我也来值夜。',pose:'guard',effect:'starlight',duration:4.2},
-    {speaker:'princess',name:'小迷湖',text:'把今天的心事，先放在这里吧。',pose:'yawn',effect:'starlight',duration:4.2},
-    {speaker:'cat',name:'善逸',text:'我守着，你去做个好梦。',pose:'sleep',effect:'starlight',duration:4.6}
+  welcome:[
+    {speaker:'cat',text:'有人来啦！迷湖公主，我去敲门。',princess:'lookDoor',cat:'ringBell',castle:'bell',prop:'bell',duration:4.6},
+    {speaker:'princess',text:'慢一点，门还没打开，你就蹦过去了。',princess:'reachCat',cat:'hopBack',castle:'opening',prop:'bell',duration:4.6},
+    {speaker:'cat',text:'开了！灯也亮了。快进来，位置留好了。',princess:'invite',cat:'welcome',castle:'welcome',prop:'serve',duration:4.8},
+    {speaker:'princess',text:'坐这儿吧。想听故事，还是先陪我们待会儿？',princess:'invite',cat:'settle',castle:'warm',prop:'share',duration:4.8}
   ],
-  stars: [
-    {speaker:'cat',name:'喵',text:'刚刚有颗星星，落在你这里了。',pose:'chase',effect:'stars',duration:4},
-    {speaker:'princess',name:'小迷湖',text:'接住啦。给你留一个小小的愿望。',pose:'catch',effect:'stars',duration:4.5}
+  bedtime:[
+    {speaker:'princess',text:'眼睛快睁不开了……我妻善逸，关灯吧。',princess:'yawn',cat:'lookUp',castle:'warm',prop:'none',duration:4.6},
+    {speaker:'cat',text:'这一盏、这一盏……门口的留着，好不好？',princess:'nod',cat:'switchLights',castle:'lightsOut',prop:'none',duration:4.8},
+    {speaker:'princess',text:'好。这样你回来，也不会找不到门。',princess:'sleep',cat:'curl',castle:'nightlight',prop:'blanket',duration:4.6},
+    {speaker:'cat',text:'那我们先睡啦。你也别熬太久，晚安。',princess:'sleep',cat:'sleep',castle:'nightlight',prop:'blanket',duration:4.6}
   ],
-  flowers: [
-    {speaker:'princess',name:'小蛋糕',text:'今天的花开了，想先让你看看。',pose:'garden',effect:'flowers',duration:4.2},
-    {speaker:'cat',name:'善逸',text:'我没碰花。我只是闻一闻。',pose:'sniff',effect:'flowers',duration:4.2}
+  listening:[
+    {speaker:'cat',text:'我把门轻轻关上，咱们接着听。',princess:'read',cat:'settle',castle:'closing',prop:'book',duration:4.6},
+    {speaker:'princess',text:'过来一点，你趴那儿会挡住门。',princess:'beckon',cat:'scoot',castle:'warm',prop:'book',duration:4.4},
+    {speaker:'cat',text:'挪好了。你听故事，我就在旁边。',princess:'read',cat:'curl',castle:'warm',prop:'book',duration:4.4}
   ],
-  company: [
-    {speaker:'princess',name:'小迷湖',text:'好呀，今天可以慢慢待在这里。',pose:'read',effect:'company',duration:4.2},
-    {speaker:'cat',name:'善逸',text:'那我把尾巴收好，给你腾个位置。',pose:'nap',effect:'company',duration:4.5}
-  ],
-  listening: [
-    {speaker:'cat',name:'善逸',text:'嘘，正在讲呢。我陪你一起听。',pose:'listen',effect:'listening',duration:4.5}
-  ],
-  listeningPrincess: [
-    {speaker:'princess',name:'迷湖宝宝',text:'这段讲完，再陪我坐一会儿，好不好？',pose:'listen',effect:'listening',duration:4.5}
-  ],
-  fresh: [
-    {speaker:'cat',name:'咪了个咪',text:'城堡收到新的故事啦，要一起听吗？',pose:'invite',effect:'welcome',duration:4.5}
+  company:[
+    {speaker:'princess',text:'我读到这里了。你也过来看看？',princess:'read',cat:'peekBook',castle:'warm',prop:'book',duration:4.6},
+    {speaker:'cat',text:'我来看……不是来趴在书上的。',princess:'protectBook',cat:'leanBook',castle:'notice',prop:'book',duration:4.6},
+    {speaker:'princess',text:'那就挨着坐。给你们都留点位置。',princess:'beckon',cat:'scoot',castle:'warm',prop:'book',duration:4.4},
+    {speaker:'cat',text:'这回不闹了。我们慢慢待一会儿。',princess:'read',cat:'curl',castle:'warm',prop:'book',duration:4.6}
   ]
 };
+export const REGULAR_STORIES=['cake','stars','welcome'];
 
-export const IDLE_SCENES = ['read','chase','garden','nap'];
-
-export function chooseScene(actor, {bedtime=false,night=false,playing=false,fresh=false}={}, previous='') {
-  if(playing)return actor==='cat'?'listening':'listeningPrincess';
-  if(bedtime)return 'starlight';
-  if(actor==='cat'&&fresh&&previous!=='fresh')return 'fresh';
-  const choices=actor==='princess'?['welcome','flowers','stars']:['mischief','stars',...(night?['starlight']:['welcome'])];
-  return choices[(Math.max(-1,choices.indexOf(previous))+1)%choices.length];
+// Entry point is deliberately independent of which actor was tapped.
+export function nextStory({playing=false,bedtime=false,fresh=false}={},previous=''){
+  const pool=playing?['listening','company']:bedtime?['bedtime','stars']:REGULAR_STORIES;
+  if(fresh&&!playing&&!bedtime&&previous!=='welcome')return 'welcome';
+  return pool[(pool.indexOf(previous)+1)%pool.length];
 }
-
-// Carry time across dialogue turns, even after a slow frame, without leaving
-// old scenes/timers running when the user changes characters.
-export function advanceStory(scene, index, elapsed, delta) {
-  const lines=SCENES[scene];
-  if(!lines)return {index:0,elapsed:0,done:true};
-  elapsed+=Math.max(0,delta);
-  while(index<lines.length&&elapsed>=lines[index].duration){elapsed-=lines[index].duration;index++;}
-  return {index,elapsed,done:index>=lines.length};
+export function beginStory(story){return {story,index:0,elapsed:0,speed:1,done:false};}
+export function boostStory(state){return state.done?state:{...state,speed:Math.min(2.35,state.speed+.45)};}
+export function advanceStory(state,delta){
+  if(state.done)return state;
+  let {index,elapsed}=state;const beats=STORIES[state.story];elapsed+=Math.max(0,delta)*state.speed;
+  while(index<beats.length&&elapsed>=beats[index].duration){elapsed-=beats[index].duration;index++;}
+  return {...state,index,elapsed,done:index>=beats.length};
 }
+export function storyProgress(state){
+  const beats=STORIES[state.story],total=beats.reduce((sum,beat)=>sum+beat.duration,0);
+  return Math.min(1,(beats.slice(0,state.index).reduce((sum,beat)=>sum+beat.duration,0)+state.elapsed)/total);
+}
+export function idlePreview(story,elapsed){
+  const phase=elapsed%12;
+  if(story==='bedtime')return {princess:'sleep',cat:phase<8?'curl':'sleep',castle:'nightlight',prop:'blanket'};
+  if(story==='listening'||story==='company')return {princess:'read',cat:phase<5?'peekBook':'curl',castle:'warm',prop:'book'};
+  if(story==='stars')return {princess:phase<4?'followStar':phase<8?'beckon':'neutral',cat:phase<4?'lookUp':phase<8?'tinyChase':'welcome',castle:'starTease',prop:'teaserStar'};
+  if(story==='welcome')return {princess:phase<5?'lookDoor':'beckon',cat:phase<5?'teaseBell':phase<8?'hopBack':'welcome',castle:'teaseBell',prop:'bell'};
+  return {princess:phase<4?'read':phase<8?'inspect':'beckon',cat:phase<4?'sneak':phase<8?'freeze':'welcome',castle:phase<4?'warm':'notice',prop:phase<4?'bookCake':'cake'};
+}
+export const INVITATIONS={cake:'蛋糕少了一角，谁偷吃了？',stars:'屋顶的星星，好像想下来玩。',welcome:'门铃响了，他们在等你进来。',bedtime:'陪他们说声晚安吧。',listening:'听着故事，也看看他们在忙什么。',company:'他们挤在一起，正看同一本书。'};
