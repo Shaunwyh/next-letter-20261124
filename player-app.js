@@ -1,4 +1,4 @@
-import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-17';
+import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-18';
 
 (() => {
   'use strict';
@@ -169,6 +169,7 @@ import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle
   for(const id of ['desktop-seek','player-seek'])$(id).addEventListener('input',e=>seekTo(e.target.value));
   // Scene replies are explicit taps; start playback in the same user gesture.
   window.addEventListener('castle-play-request',() => {
+    if(current&&!audio.paused&&!audio.ended){openPlayer();return;}
     const stories=tracks.filter(t=>t.category==='story').sort((a,b)=>Date.parse(b.fileTimestamp)-Date.parse(a.fileTimestamp));
     if(!stories.length)return;
     if(current?.category!=='story')select(stories[0]);

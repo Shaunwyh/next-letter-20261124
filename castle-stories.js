@@ -28,7 +28,7 @@ export const SCENES = {
     {speaker:'cat',name:'善逸',text:'那我把尾巴收好，给你腾个位置。',pose:'nap',effect:'company',duration:4.5}
   ],
   listening: [
-    {speaker:'cat',name:'善逸',text:'嘘，故事正在讲。我陪你一起听。',pose:'listen',effect:'listening',duration:4.5}
+    {speaker:'cat',name:'善逸',text:'嘘，正在讲呢。我陪你一起听。',pose:'listen',effect:'listening',duration:4.5}
   ],
   listeningPrincess: [
     {speaker:'princess',name:'迷湖宝宝',text:'这段讲完，再陪我坐一会儿，好不好？',pose:'listen',effect:'listening',duration:4.5}

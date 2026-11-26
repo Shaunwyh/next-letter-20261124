@@ -1,4 +1,4 @@
-import {SCENES, IDLE_SCENES, chooseScene, advanceStory} from './castle-stories.js?v=castle-17';
+import {SCENES, IDLE_SCENES, chooseScene, advanceStory} from './castle-stories.js?v=castle-18';
 
 export function createTheatre(host) {
   const dialogue=document.getElementById('scene-dialogue'),speech=document.getElementById('scene-speech');
@@ -11,7 +11,7 @@ export function createTheatre(host) {
   let active=null,line=0,elapsed=0,clock=0,idleIndex=0,idleElapsed=0,replyTime=0,lastTap=-1;
   let onWake=()=>{},visible=true;
   const context=(includeFresh=false)=>({bedtime:host.dataset.bedtime==='true',night:document.documentElement.dataset.theme==='dark',playing:!audio.paused&&!audio.ended,fresh:includeFresh&&(window.CASTLE_LIBRARY||[]).some(t=>Date.now()-Date.parse(t.publishedAt)>=0&&Date.now()-Date.parse(t.publishedAt)<6*3600*1000)});
-  function updateHint(){hint.textContent=context().playing?'故事在讲，他们在陪你听':'轻点公主或猫咪，说说话';}
+  function updateHint(){hint.textContent=context().playing?'他们在陪你一起听':'轻点公主或猫咪，说说话';}
   function showLine(){
     const turn=SCENES[active][line];
     dialogue.dataset.speaker=turn.speaker;speaker.textContent=turn.name||names[turn.speaker];text.textContent=turn.text;

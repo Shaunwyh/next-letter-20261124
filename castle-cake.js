@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-import './castle-clock.js?v=castle-17';
-import {createTheatre} from './castle-theatre.js?v=castle-17';
+import './castle-clock.js?v=castle-18';
+import {createTheatre} from './castle-theatre.js?v=castle-18';
 const canvas=document.getElementById('cake-canvas'),host=canvas.parentElement;
 const theatre=createTheatre(host);
 theatre.init();
