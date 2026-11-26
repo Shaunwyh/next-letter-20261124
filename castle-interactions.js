@@ -9,11 +9,36 @@ const clips={
   hug:[[.8,'prepareHug'],[.85,'leapHug'],[2.7,'cuddle'],[.95,'releaseHug'],[.8,'togetherWave']],
   star:[[.9,'starDrop'],[1.0,'starCatch'],[1.2,'starShare'],[1.4,'starReturn'],[.8,'togetherWave']],
   peek:[[1.1,'hide'],[1.2,'peek'],[.75,'peekJump'],[1.5,'giggle'],[.6,'rest']],
+  highFive:[[.95,'offerFive'],[.85,'reachFive'],[.65,'touchFive'],[.85,'landFive'],[1.5,'proudFive'],[.7,'togetherWave']],
+  dance:[[1.0,'danceInvite'],[3.8,'danceTurn'],[1.3,'danceBow'],[.9,'togetherWave']],
+  gift:[[1.1,'giftDoor'],[1.3,'giftSlide'],[1.3,'giftSniff'],[1.7,'giftOpen'],[1.4,'giftReturn'],[.7,'togetherWave']],
+  wish:[[1.1,'wishGather'],[1.4,'wishClose'],[1.9,'wishBloom'],[1.6,'wishSend'],[.8,'togetherWave']],
   nightCat:[[.6,'catNotice'],[1.5,'catStretch'],[1.4,'catCurl']],
   nightPrincess:[[1.5,'princessYawn'],[1.25,'nightWave'],[1.5,'princessSleep']],
   nightCastle:[[2.8,'lightsOut'],[1.4,'nightRest']],
   nightHug:[[1.0,'prepareHug'],[1.25,'leapHug'],[1.4,'cuddle'],[1.2,'sitTogether'],[3.4,'sleepTogether']],
+  nightNuzzle:[[1.3,'nightApproach'],[2.2,'nightNuzzle'],[1.5,'nightLift'],[1.2,'sitTogether'],[3.0,'sleepTogether']],
+  nightStars:[[1.2,'lampInvite'],[1.8,'lampLower'],[2.0,'lampGoodnight'],[1.5,'nightLift'],[1.2,'sitTogether'],[3.0,'sleepTogether']],
 };
+
+// A shuffled bag lets every little scene appear before one is repeated.
+// Separate bags keep bedtime gentle, regardless of the selected colour theme.
+export function createScenePicker(random=Math.random){
+  const pools={day:['highFive','hug','star','peek','dance','gift','wish'],night:['nightHug','nightNuzzle','nightStars']};
+  const bags={day:[],night:[]},last={day:null,night:null};
+  return night=>{
+    const key=night?'night':'day';
+    if(!bags[key].length){
+      const bag=[...pools[key]];
+      for(let i=bag.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}
+      const first=last[key]===null?pools[key][0]:null;
+      if(first){const i=bag.indexOf(first);[bag[0],bag[i]]=[bag[i],bag[0]];}
+      else if(bag[0]===last[key])[bag[0],bag[1]]=[bag[1],bag[0]];
+      bags[key]=bag;
+    }
+    const name=bags[key].shift();last[key]=name;return name;
+  };
+}
 
 export function sampleGesture(name,elapsed){
   const clip=clips[name]||clips.hug;
@@ -30,7 +55,8 @@ export function createInteractions(host){
   const bubble=document.getElementById('scene-identity'),announcement=document.getElementById('scene-announcement');
   const stage=document.getElementById('scene-stage'),player=document.getElementById('player-sheet');
   const motion=matchMedia('(prefers-reduced-motion: reduce)');
-  let active=null,idleTime=0,cycle=0,pulse=0,pulseTarget='all',bubbleTime=0,nightHold=0;
+  const pickScene=createScenePicker();
+  let active=null,idleTime=0,pulse=0,pulseTarget='all',bubbleTime=0,nightHold=0;
   let wake=()=>{},hitTest=null,visible=true,fallbackMode=false,fallbackTimer,last=performance.now();
   let wasBedtime=host.dataset.bedtime==='true';
   function showIdentity(target){
@@ -43,7 +69,8 @@ export function createInteractions(host){
     showIdentity(target);pulse=1;pulseTarget=target;
     if(active&&(active.target===target||active.target==='all')){wake();return;}
     const night=host.dataset.bedtime==='true';
-    const name=night?({cat:'nightCat',princess:'nightPrincess',castle:'nightCastle',all:'nightHug'})[target]:target==='all'?['hug','star','peek'][cycle++%3]:target;
+    const name=target==='all'?pickScene(night):night?({cat:'nightCat',princess:'nightPrincess',castle:'nightCastle'})[target]:target;
+    if(target==='all'){bubble.hidden=true;bubbleTime=0;}
     active={name,target,elapsed:0,night};idleTime=0;nightHold=0;
     host.dataset.interaction='active';host.dataset.gesture=name;wake();
   }
@@ -62,7 +89,7 @@ export function createInteractions(host){
       active.elapsed+=delta;const sampled=sampleGesture(active.name,active.elapsed);
       state={...sampled,gesture:active.name,target:active.target,night,active:true};
       if(sampled.done){
-        if(active.name==='nightHug')nightHold=Infinity;
+        if(active.night&&active.target==='all')nightHold=Infinity;
         active=null;idleTime=0;host.dataset.interaction='idle';
       }
     }else{
@@ -75,7 +102,7 @@ export function createInteractions(host){
     }
     state.pulse=motion.matches?0:pulse;state.pulseTarget=pulseTarget;state.reduced=motion.matches;
     host.dataset.gesture=state.gesture;host.dataset.pose=state.pose;
-    host.dataset.scene=night?'nightlight':['cuddle','togetherWave','castleGlow','giggle'].includes(state.pose)?'celebrate':'calm';
+    host.dataset.scene=night?'nightlight':['cuddle','togetherWave','castleGlow','giggle','touchFive','danceTurn','giftOpen','wishBloom'].includes(state.pose)?'celebrate':'calm';
     return state;
   }
   function fallback(){

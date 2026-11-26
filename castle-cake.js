@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-import './castle-clock.js?v=castle-20';
-import {createInteractions} from './castle-interactions.js?v=castle-20';
+import './castle-clock.js?v=castle-21';
+import {createInteractions} from './castle-interactions.js?v=castle-21';
 const canvas=document.getElementById('cake-canvas'),host=canvas.parentElement,art=document.getElementById('album-art');
 const theatre=createInteractions(art);
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
@@ -171,11 +171,35 @@ const blanketShape=new THREE.Shape();blanketShape.moveTo(-.25,.06);blanketShape.
 piece(new THREE.ExtrudeGeometry(blanketShape,{depth:.025,bevelEnabled:true,bevelSize:.025,bevelThickness:.018,bevelSegments:3,steps:1}),gown,0,0,.20,blanket);
 const stitch=new THREE.CatmullRomCurve3([new THREE.Vector3(-.22,-.22,.25),new THREE.Vector3(0,-.25,.25),new THREE.Vector3(.22,-.22,.25)]);
 piece(new THREE.TubeGeometry(stitch,20,.006,5,false),cream,0,0,0,blanket);bakeStaticGroup(blanket);
+// A tiny hinged present belongs to the castle, and only leaves the door
+// during its own scene. It stays below the faces on the smallest phones.
+const present=new THREE.Group();scene.add(present);present.visible=false;
+function softBox(w,h,d,mat,parent){
+  const r=.025,shape=new THREE.Shape();
+  shape.moveTo(-w/2+r,0);shape.lineTo(w/2-r,0);shape.quadraticCurveTo(w/2,0,w/2,r);
+  shape.lineTo(w/2,h-r);shape.quadraticCurveTo(w/2,h,w/2-r,h);shape.lineTo(-w/2+r,h);
+  shape.quadraticCurveTo(-w/2,h,-w/2,h-r);shape.lineTo(-w/2,r);shape.quadraticCurveTo(-w/2,0,-w/2+r,0);
+  return piece(new THREE.ExtrudeGeometry(shape,{depth:d,bevelEnabled:true,bevelSize:.012,bevelThickness:.012,bevelSegments:2,steps:1}),mat,0,0,-d/2,parent);
+}
+softBox(.43,.30,.36,cream,present);
+piece(new THREE.BoxGeometry(.055,.30,.375),rose,0,.15,0,present);
+const presentLid=new THREE.Group();present.add(presentLid);presentLid.position.set(0,.30,-.18);
+const lidTop=new THREE.Group();presentLid.add(lidTop);lidTop.position.z=.18;
+softBox(.48,.07,.41,rose,lidTop);
+piece(new THREE.BoxGeometry(.06,.012,.42),gold,0,.081,0,lidTop);
+piece(new THREE.BoxGeometry(.49,.012,.045),gold,0,.081,0,lidTop);
+for(const side of [-1,1]){const loop=piece(new THREE.TorusGeometry(.055,.009,5,18),gold,side*.048,.12,0,lidTop,[1,.65,1]);loop.rotation.y=side*.4;}
+bakeAroundJoints(present,[presentLid]);bakeStaticGroup(lidTop);
+// Shared, lightweight particles mark a paw tap or a wish, never a full-screen flash.
+const sceneSparkles=[];
+for(let i=0;i<10;i++){const star=piece(starGeo,new THREE.MeshBasicMaterial({color:i%2?'#fff1cb':'#f1bd8c',transparent:true,opacity:0,depthWrite:false}),0,0,0,scene);star.castShadow=false;sceneSparkles.push(star);}
+const contactHand=new THREE.Vector3(),contactPaw=new THREE.Vector3(),effectPoint=new THREE.Vector3();
 const roofPosition=new THREE.Vector3();
 let pointer={x:0,y:0},time=0,last=0,visible=true,raf=null,bedtime=art.dataset.bedtime==='true',lastDraw=0,renderLost=false;
 const princessButton=document.getElementById('scene-princess'),catButton=document.getElementById('scene-cat'),castleButton=document.getElementById('scene-castle');
 const projected=new THREE.Vector3();
 const damp=(value,target,dt)=>reduced.matches?target:THREE.MathUtils.damp(value,target,11,dt||.016);
+const dampAngle=(value,target,dt)=>damp(value,value+Math.atan2(Math.sin(target-value),Math.cos(target-value)),dt);
 const clamp=(x)=>THREE.MathUtils.clamp(x,0,1),ease=x=>{x=clamp(x);return x*x*(3-2*x);};
 function toScreen(x,y,z,object){projected.set(x,y,z);object.localToWorld(projected);projected.project(camera);return {x:(projected.x*.5+.5)*host.clientWidth,y:(-.5*projected.y+.5)*host.clientHeight};}
 function anchorActors(){
@@ -218,7 +242,7 @@ function draw(t){
   if(!visible||document.hidden||document.getElementById('player-sheet').open||renderLost)return;
   const dt=last?Math.min((t-last)/1000,.25):0;last=t;time+=dt;
   const state=theatre.tick(dt),moving=!reduced.matches,pose=state.pose,night=state.night;
-  const phase=state.elapsed,p=clamp(state.progress),animDt=dt;
+  const phase=state.elapsed,p=moving?clamp(state.progress):.5,animDt=dt;
   const sin=(rate,shift=0)=>moving?Math.sin(time*rate+shift):0;
   const localSin=rate=>moving?Math.sin(phase*rate):0;
   const arc=moving?Math.sin(p*Math.PI):0;
@@ -228,6 +252,7 @@ function draw(t){
   let pawZ=0,pawX=0,pawY=.30,leftPawZ=0,leftPawX=0,bodyY=1,bodyX=1;
   let eyesClosed=false,catClosed=false,yawning=false,showBlanket=false;
   let castleAction=night?'nightlight':'calm',castleY=.025,castleScaleX=1,castleScaleY=1,castleTilt=0,heartAmount=0,prop='';
+  let contactAmount=0,sparkleEffect='',sparkleStrength=0,giftPhase='',giftOpen=0;
   const held=(amount=1)=>{
     const sway=sin(night?1.4:2.4)*(night?.018:.035);
     px=.40;pry=.05;prz=-.035+sway;hz=.12+sway;hy=.18;hx=.12;
@@ -321,6 +346,102 @@ function draw(t){
   if(pose==='giggle'){
     eyesClosed=true;hz=-.12+localSin(4)*.05;rightZ=.85;leftZ=-.85;py+=Math.abs(localSin(6))*.018;chz=localSin(4)*.10;catClosed=true;castleAction='celebrate';heartAmount=.55;
   }
+  if(['offerFive','reachFive','touchFive','landFive','proudFive'].includes(pose)){
+    rightZ=1.20;rightX=-.25;rightBend=-.08;hx=.08;hy=.35;pry=.08;hz=-.06;
+    cry=-.08;chy=-.25;catClosed=false;castleAction='notice';
+    if(pose==='offerFive'){rightZ=.32+ease(p)*.88;chz=-.15;bodyY=1-ease(p)*.12;cy-=ease(p)*.025;}
+    if(pose==='reachFive'||pose==='touchFive'||pose==='landFive'){
+      const up=pose==='reachFive'?ease(p):pose==='landFive'?1-ease(p):1;
+      cx=1.30-.07*up;cy=.035+.55*up;cz=1.06-.20*up;headY=.76;bodyY=bodyX=1;
+      leftPawZ=-2.20*up;leftPawX=-.12*up;chz=-.10*up;
+      contactAmount=pose==='reachFive'?ease((p-.40)/.60):pose==='landFive'?1-ease(p*2):1;
+      if(pose==='touchFive'){eyesClosed=true;castleAction='celebrate';castleY+=arc*.045;sparkleEffect='five';sparkleStrength=Math.sin(p*Math.PI);}
+      if(pose==='landFive'){rightZ=1.20+.28*arc;castleAction='warm';}
+    }
+    if(pose==='proudFive'){
+      rightZ=.95;rightX=-.4;leftZ=-.65;py+=Math.abs(localSin(5))*.018;
+      pawZ=2.1;leftPawZ=-2.1;chz=localSin(4)*.10;catClosed=true;eyesClosed=true;castleAction='celebrate';heartAmount=.5;
+    }
+  }
+  if(['danceInvite','danceTurn','danceBow'].includes(pose)){
+    castleAction='dance';catClosed=false;
+    if(pose==='danceInvite'){
+      const ready=ease(p);pz=.44+.28*ready;cz=1.06-.34*ready;cx=1.30+.05*ready;
+      rightZ=1.1;rightX=-.5;leftZ=-.6;hy=.3;chz=-.1;pawZ=1.7;leftPawZ=-1.7;
+    }
+    if(pose==='danceTurn'){
+      const angle=moving?ease(p)*Math.PI*2:0,bounce=Math.abs(localSin(7));
+      px=.8-.37*Math.cos(angle);pz=.72+.40*Math.sin(angle);py+=bounce*.055;
+      cx=.8+.55*Math.cos(angle);cz=.72-.45*Math.sin(angle);cy+=Math.abs(localSin(7)+.35)*.06;
+      pry=.16+angle;cry=.16+angle;prz=localSin(7)*.07;crz=-localSin(7)*.08;
+      leftZ=-1.05;rightZ=1.05;leftX=.15;rightX=-.15;pawZ=1.6;leftPawZ=-1.6;hz=localSin(3)*.08;
+      castleTilt=localSin(7)*.024;castleScaleY=1+localSin(7)*.018;
+      sparkleEffect='dance';sparkleStrength=Math.sin(p*Math.PI)*.7;
+    }
+    if(pose==='danceBow'){
+      pz=.72;cx=1.35;cz=.72;hx=arc*.45;chx=arc*.42;py-=arc*.07;
+      leftZ=-.8;rightZ=.8;eyesClosed=true;catClosed=true;castleTilt=-arc*.022;
+    }
+  }
+  if(['giftDoor','giftSlide','giftSniff','giftOpen','giftReturn'].includes(pose)){
+    castleAction='opening';giftPhase=pose;hy=-.4;hx=.18;pry=-.18;cry=-.65;catClosed=false;
+    leftZ=-.9;leftX=-.4;rightZ=.7;
+    const approaching=pose==='giftDoor'?0:pose==='giftSlide'?ease(p):pose==='giftReturn'?1-ease(p):1;
+    cx=THREE.MathUtils.lerp(1.30,.25,approaching);cz=THREE.MathUtils.lerp(1.06,1.35,approaching);px=.43+.13*approaching;
+    if(pose==='giftSniff'){
+      cx=.25-.07*Math.abs(localSin(5));chx=.34;chz=-.15;headY=.70;pawZ=-.6;leftPawZ=.6;hz=-.08;
+      castleAction='warm';
+    }
+    if(pose==='giftOpen'){
+      giftOpen=ease(p*1.6);hx=-.1;hy=-.3;rightZ=1.4;leftZ=-1.4;leftX=-.25;rightX=-.25;
+      cy+=arc*.17;pawZ=1.8;leftPawZ=-1.8;chx=-.24;castleAction='celebrate';prop='giftStar';
+      sparkleEffect='gift';sparkleStrength=Math.sin(p*Math.PI)*.85;
+    }
+    if(pose==='giftReturn'){giftOpen=1-ease(p*1.5);leftZ=-1.8;leftX=-.4;pawZ=1.8;castleAction='warm';}
+  }
+  if(['wishGather','wishClose','wishBloom','wishSend'].includes(pose)){
+    const ready=pose==='wishGather'?ease(p):1;
+    cx=1.30-.24*ready;cz=1.06-.10*ready;cry=-.28;hx=.17;hy=.2;hz=.07;
+    leftZ=.72*ready;rightZ=-.72*ready;leftX=rightX=-.95*ready;leftBend=.15;rightBend=-.15;
+    pawZ=1.25*ready;leftPawZ=-1.25*ready;pawX=leftPawX=.4;catClosed=eyesClosed=pose!=='wishSend';
+    castleAction=pose==='wishGather'?'notice':'warm';
+    if(pose==='wishClose'){prop='wishInvite';chx=.20;hx=.26;}
+    if(pose==='wishBloom'){
+      prop='wishBloom';sparkleEffect='wish';sparkleStrength=Math.sin(p*Math.PI);castleAction='celebrate';
+      hx=-.12;chx=-.24;eyesClosed=catClosed=p<.32;leftZ=-1.0;rightZ=1.0;py+=arc*.035;cy+=arc*.04;
+    }
+    if(pose==='wishSend'){
+      prop='wishSend';leftZ=-2.1;rightZ=1.6;leftX=-.3;rightX=-.3;hx=-.16;hy=-.3;
+      pawZ=2.0;leftPawZ=-2.0;chx=-.32;castleAction='starHome';
+    }
+  }
+  if(pose==='nightApproach'||pose==='nightNuzzle'){
+    const travel=pose==='nightApproach'?ease(p):1;
+    cx=THREE.MathUtils.lerp(1.30,.98,travel);cz=THREE.MathUtils.lerp(1.06,.90,travel);
+    cry=-.35;headY=.76;bodyY=bodyX=1;chx=-.10;chz=-.16;hx=.20;hy=.30;hz=.14;
+    rightZ=.9;rightX=-1.05;rightBend=-.3;catClosed=eyesClosed=true;castleAction='nightlight';
+    if(pose==='nightNuzzle'){
+      cx=.98-localSin(2.7)*.035;chz=-.16+localSin(2.7)*.09;rightBend=-.3+localSin(2.7)*.10;
+    }
+  }
+  if(pose==='nightLift'){
+    held();const travel=ease(p);headY=.76;bodyY=bodyX=1;
+    cx=THREE.MathUtils.lerp(.98,.75,travel);cy=THREE.MathUtils.lerp(.035,.58,travel);cz=.9;
+    crz=-.17*travel;pawZ=1.9*travel;leftPawZ=-1.9*travel;eyesClosed=catClosed=true;castleAction='nightlight';
+    leftZ=THREE.MathUtils.lerp(-.32,.92,travel);leftX=-1.1*travel;
+    rightZ=THREE.MathUtils.lerp(.9,-.72,travel);rightX=-1.05-.19*travel;
+  }
+  if(['lampInvite','lampLower','lampGoodnight'].includes(pose)){
+    const travel=pose==='lampInvite'?ease(p):1;
+    cx=1.30-.32*travel;cz=1.06-.16*travel;cry=-.35;headY=.76;bodyY=bodyX=1;
+    hx=-.12;hy=-.30;chx=-.23;catClosed=false;eyesClosed=false;castleAction='nightlight';
+    leftZ=-1.85;leftX=-.3;rightZ=.65;
+    if(pose==='lampLower'){prop='lampLower';leftZ=-1.2;rightZ=.85;castleAction='lightsOut';}
+    if(pose==='lampGoodnight'){
+      prop='lampDim';leftZ=-.4;rightZ=.9;rightX=-1.05;rightBend=-.3;hx=.19;hy=.3;
+      catClosed=eyesClosed=true;chx=.1;chz=-.13;castleAction='nightlight';
+    }
+  }
   if(pose==='groom'){pawZ=-2.4;pawY=.43;chx=.22;chz=.12+localSin(4)*.05;}
   if(pose==='adjustCrown'){rightZ=2.7;rightX=-.30;rightBend=.5;hz=-.1;hy=-.15;}
   if(pose==='pet'){
@@ -334,7 +455,7 @@ function draw(t){
   }
   princess.position.set(damp(princess.position.x,px,animDt),damp(princess.position.y,py+sin(night?1.4:2.4)*(night?.005:.010),animDt),damp(princess.position.z,pz,animDt));
   princess.scale.set(1.04,1.04*damp(princess.scale.y/1.04,princessScale,animDt),1.04);
-  princess.rotation.y=damp(princess.rotation.y,pry,animDt);princess.rotation.z=damp(princess.rotation.z,prz,animDt);
+  princess.rotation.y=dampAngle(princess.rotation.y,pry,animDt);princess.rotation.z=damp(princess.rotation.z,prz,animDt);
   head.rotation.x=damp(head.rotation.x,hx,animDt);head.rotation.y=damp(head.rotation.y,hy,animDt);head.rotation.z=damp(head.rotation.z,hz,animDt);
   const blink=moving&&time%4.8>4.63;eyes.visible=!eyesClosed&&!blink;sleepyEyes.visible=eyesClosed||blink;
   mouth.visible=!yawning;openMouth.visible=yawning;openMouth.scale.y=1.7;
@@ -342,7 +463,7 @@ function draw(t){
   rightArm.rotation.set(damp(rightArm.rotation.x,rightX,animDt),0,damp(rightArm.rotation.z,rightZ,animDt));
   forearms[0].rotation.z=damp(forearms[0].rotation.z,leftBend,animDt);forearms[1].rotation.z=damp(forearms[1].rotation.z,rightBend,animDt);
   cat.position.set(damp(cat.position.x,cx,animDt),damp(cat.position.y,cy+sin(night?1.4:2.8)*(night?.004:.008),animDt),damp(cat.position.z,cz,animDt));
-  cat.rotation.y=damp(cat.rotation.y,cry,animDt);cat.rotation.z=damp(cat.rotation.z,crz,animDt);
+  cat.rotation.y=dampAngle(cat.rotation.y,cry,animDt);cat.rotation.z=damp(cat.rotation.z,crz,animDt);
   catBody.scale.set(damp(catBody.scale.x,bodyX,animDt),damp(catBody.scale.y,bodyY+sin(night?1.4:2.8)*.012,animDt),1);
   catHead.position.y=damp(catHead.position.y,headY,animDt);catHead.rotation.x=damp(catHead.rotation.x,chx,animDt);catHead.rotation.y=damp(catHead.rotation.y,chy,animDt);catHead.rotation.z=damp(catHead.rotation.z,chz,animDt);
   catPaw.rotation.z=damp(catPaw.rotation.z,pawZ,animDt);catPaw.rotation.x=damp(catPaw.rotation.x,pawX,animDt);catPaw.position.y=damp(catPaw.position.y,pawY,animDt);
@@ -350,6 +471,14 @@ function draw(t){
   catTail.rotation.z=damp(catTail.rotation.z,sin(catClosed?1.1:3)*(night?.05:.25),animDt);catTail.rotation.y=sin(1.7)*(night?.10:.35);catTail.rotation.x=damp(catTail.rotation.x,catClosed?-.8:0,animDt);
   const catBlink=moving&&time%5.2>4.96;catEyes.visible=!catClosed&&!catBlink;catSleepEyes.visible=catClosed||catBlink;
   catEars.forEach((ear,i)=>{ear.rotation.z=(i===0?-.12:.12)+(moving&&(pose==='catNotice'||time%9<.5)?sin(13,i)*(night?.04:.10):0);});
+  // Join the actual articulated hand and paw, so a high five cannot miss
+  // when camera proportions or mobile layout change.
+  if(contactAmount){
+    scene.updateMatrixWorld(true);
+    forearms[1].localToWorld(contactHand.set(0,-.206,0));
+    catLeftPaw.localToWorld(contactPaw.set(0,-.244,.018));
+    cat.position.addScaledVector(effectPoint.copy(contactHand).sub(contactPaw),contactAmount);
+  }
   bellRipple.material.opacity=0;
   blanket.visible=showBlanket;blanket.position.set(0,.39,.09);blanket.scale.setScalar(1.17);
   flowers.scale.setScalar(.85);flowers.rotation.z=sin(.8)*.012;
@@ -357,7 +486,7 @@ function draw(t){
   cake.rotation.y=damp(cake.rotation.y,.17+pointer.x*.04,animDt);cake.rotation.z=damp(cake.rotation.z,castleTilt,animDt);
   let door=0;
   if(castleAction==='opening')door=1.15*ease(p*2);
-  if(['warm','celebrate','notice'].includes(castleAction))door=1.0;
+  if(['warm','celebrate','notice','dance'].includes(castleAction))door=1.0;
   if(castleAction==='lightsOut')door=.65*(1-ease(p));
   doorHinge.rotation.y=damp(doorHinge.rotation.y,-door,animDt);
   const dark=document.documentElement.dataset.theme==='dark';
@@ -365,6 +494,7 @@ function draw(t){
     let light=dark?.34:.06;
     if(castleAction==='opening')light=p>i*.15?.75:.08;
     if(['warm','celebrate'].includes(castleAction))light=.7+sin(2,i)*.08;
+    if(castleAction==='dance')light=.45+sin(4,i*.9)*.2;
     if(castleAction==='notice')light=.2+.6*Math.max(0,localSin(3-i));
     if(castleAction==='starAway')light=.04;
     if(castleAction==='starHome')light=p>.4+i*.12?.85:.04;
@@ -372,21 +502,60 @@ function draw(t){
     if(castleAction==='nightlight')light=i===0?.32:.025;
     win.material.emissiveIntensity=damp(win.material.emissiveIntensity,light,animDt);win.material.color.set(light>.3?'#c69a57':'#83684a');
   });
-  flag.rotation.y=sin(night?.9:castleAction==='celebrate'?6:2)*(night?.04:castleAction==='celebrate'?.5:.10);
+  flag.rotation.y=sin(night?.9:['celebrate','dance'].includes(castleAction)?6:2)*(night?.04:['celebrate','dance'].includes(castleAction)?.5:.10);
   flagPole.position.y=2.12+(castleAction==='celebrate'?Math.max(0,sin(4))*.05:0);
   topBerry.rotation.z=pose==='castleSpring'?localSin(12)*.14*(1-p):sin(.8)*.008;
   bell.rotation.z=pose==='castleSpring'?localSin(10)*.3*(1-p):0;
   roofPosition.set(.06,2.51,.15);cake.localToWorld(roofPosition);roofStar.position.copy(roofPosition);roofStar.quaternion.copy(camera.quaternion);roofStar.rotation.z=sin(1.5)*.08;
-  roofStar.material.opacity=night?.45:.8;roofStar.visible=!['fallingStar','catchStar','holdStar','returnStar'].includes(prop)||prop==='returnStar'&&p>.88;
+  const starTravels=['fallingStar','catchStar','holdStar','returnStar','wishInvite','wishBloom','wishSend','lampLower','lampDim'].includes(prop);
+  roofStar.material.opacity=night?(pose==='sleepTogether'?.14:.38):.8;
+  roofStar.visible=!starTravels||['returnStar','wishSend'].includes(prop)&&p>.88;
   wanderingStar.visible=!!prop;
   if(prop){
-    let sx=.8,sy=1.5,sz=.8;
+    let sx=.8,sy=1.5,sz=.8,starScale=1.5,starOpacity=.95;
     if(prop==='fallingStar'){const travel=ease(p);sx=THREE.MathUtils.lerp(roofPosition.x,1.12,travel);sy=THREE.MathUtils.lerp(roofPosition.y,.85,travel)+arc*.30;sz=THREE.MathUtils.lerp(roofPosition.z,1.12,travel);}
     if(prop==='catchStar'){sx=1.04;sy=.85+ease(p)*.5;sz=1.05;}
     if(prop==='holdStar'){const travel=ease(p);sx=THREE.MathUtils.lerp(1.04,.7,travel);sy=THREE.MathUtils.lerp(1.35,1.4,travel);sz=THREE.MathUtils.lerp(1.05,.8,travel);}
     if(prop==='returnStar'){const travel=ease((p-.12)/.76);sx=THREE.MathUtils.lerp(.7,roofPosition.x,travel);sy=THREE.MathUtils.lerp(1.40,roofPosition.y,travel)+Math.sin(travel*Math.PI)*.4;sz=THREE.MathUtils.lerp(.8,roofPosition.z,travel);}
-    wanderingStar.position.set(sx,sy,sz);wanderingStar.quaternion.copy(camera.quaternion);wanderingStar.rotation.z=sin(2)*.2;wanderingStar.scale.setScalar(1.5);wanderingStar.material.opacity=prop==='returnStar'&&p>.88?0:.95;
+    if(prop==='giftStar'){sx=-.34;sy=.50+ease(p)*.60;sz=1.35;starScale=1.9*Math.sin(p*Math.PI);starOpacity=Math.sin(p*Math.PI)*.9;}
+    if(prop==='wishInvite'){
+      const travel=ease(p);sx=THREE.MathUtils.lerp(roofPosition.x,-.24,travel);sy=THREE.MathUtils.lerp(roofPosition.y,2.10,travel)+arc*.20;sz=THREE.MathUtils.lerp(roofPosition.z,.92,travel);
+    }
+    if(prop==='wishBloom'){sx=-.24;sy=2.10+arc*.10;sz=.92;starScale=1.5+arc*1.1;starOpacity=.8;}
+    if(prop==='wishSend'){
+      const travel=ease(p);sx=THREE.MathUtils.lerp(-.24,roofPosition.x,travel);sy=THREE.MathUtils.lerp(2.10,roofPosition.y,travel)+arc*.45;sz=THREE.MathUtils.lerp(.92,roofPosition.z,travel);
+    }
+    if(prop==='lampLower'){
+      const travel=ease(p);sx=THREE.MathUtils.lerp(roofPosition.x,.76,travel);sy=THREE.MathUtils.lerp(roofPosition.y,1.1,travel);sz=THREE.MathUtils.lerp(roofPosition.z,1.02,travel);starScale=1.3;starOpacity=.42;
+    }
+    if(prop==='lampDim'){sx=.76;sy=1.1-.18*ease(p);sz=1.02;starScale=1.3*(1-ease(p));starOpacity=.42*(1-ease(p));}
+    wanderingStar.position.set(sx,sy,sz);wanderingStar.quaternion.copy(camera.quaternion);wanderingStar.rotation.z=sin(night?.6:2)*.2;wanderingStar.scale.setScalar(starScale);
+    wanderingStar.material.opacity=['returnStar','wishSend'].includes(prop)&&p>.88?0:starOpacity;
   }
+  present.visible=!!giftPhase&&giftPhase!=='giftDoor';
+  if(present.visible){
+    const travel=giftPhase==='giftSlide'?ease(p):giftPhase==='giftReturn'?1-ease(p):1;
+    effectPoint.set(0,.25,1.42);cake.localToWorld(effectPoint);
+    present.position.set(THREE.MathUtils.lerp(effectPoint.x,-.34,travel),THREE.MathUtils.lerp(effectPoint.y,.025,travel),THREE.MathUtils.lerp(effectPoint.z,1.35,travel));
+    present.scale.setScalar(.45+.55*travel);present.rotation.y=-.12;presentLid.rotation.x=-giftOpen*1.75;
+    if(giftPhase==='giftReturn'&&p>.97)present.visible=false;
+  }
+  sceneSparkles.forEach((star,i)=>{
+    star.visible=!!sparkleEffect&&moving&&!night;
+    if(!star.visible)return;
+    const angle=i/sceneSparkles.length*Math.PI*2;
+    if(sparkleEffect==='five'){
+      const distance=.08+ease(p)*.44;star.position.set(contactHand.x+Math.cos(angle)*distance,contactHand.y+Math.sin(angle)*distance,contactHand.z+.14);
+    }else if(sparkleEffect==='dance'){
+      const turn=angle+phase*1.5;star.position.set(.8+Math.cos(turn)*.83,.20+Math.sin(angle*2+phase)*.06,.72+Math.sin(turn)*.60);
+    }else if(sparkleEffect==='gift'){
+      star.position.set(-.34+Math.cos(angle)*(.10+ease(p)*.50),.38+ease(p)*.65+Math.sin(angle)*.24,1.35+Math.sin(angle)*.12);
+    }else{
+      const turn=angle+phase*.8;star.position.set(-.24+Math.cos(turn)*(.24+arc*.22),2.10+Math.sin(turn)*(.12+arc*.16),.98);
+    }
+    star.quaternion.copy(camera.quaternion);star.rotation.z=angle+phase*.5;
+    star.scale.setScalar((i%2?.5:.8)*sparkleStrength);star.material.opacity=sparkleStrength*.7;
+  });
   hearts.forEach((heart,i)=>{
     const travel=(phase*.5+i*.137)%1,fromCastle=pose==='castleGlow';
     heart.visible=heartAmount>0&&!night&&moving;
