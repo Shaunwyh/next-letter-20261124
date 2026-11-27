@@ -1,5 +1,6 @@
-import {clockState} from './castle-clock.js?v=castle-23';
-import {BOOKS,SPREADS,startOfBook} from './castle-book-stories.js?v=castle-23';
+import {showDialog} from './castle-dialogs.js?v=castle-24';
+import {clockState} from './castle-clock.js?v=castle-24';
+import {BOOKS,SPREADS,startOfBook} from './castle-book-stories.js?v=castle-24';
 
 const card=document.getElementById('album-art'),sheet=document.getElementById('book-library');
 const storageKey='castle-book-reading-v1';
@@ -65,8 +66,8 @@ function appearance(){card.dataset.bedtime=String(bedtime);card.dataset.night=St
 window.addEventListener('theme-change',appearance);
 window.addEventListener('castle-clock-change',event=>{bedtime=event.detail.isBedtime;appearance();});
 window.addEventListener('book-chapter',event=>{const changed=index!==event.detail.index;renderChapter(event.detail.index,{remember:changed});if(changed)document.getElementById('gesture-hint').classList.add('used');});
-document.getElementById('book-switch').addEventListener('click',()=>{renderLibrary();sheet.showModal();});
-document.getElementById('book-another').addEventListener('click',()=>{renderLibrary();sheet.showModal();});
+document.getElementById('book-switch').addEventListener('click',()=>{renderLibrary();showDialog(sheet);});
+document.getElementById('book-another').addEventListener('click',()=>{renderLibrary();showDialog(sheet);});
 document.getElementById('book-restart').addEventListener('click',()=>request(startOfBook(SPREADS[index].bookId)));
 document.getElementById('book-previous').addEventListener('click',()=>request(index-1));
 document.getElementById('book-next').addEventListener('click',()=>request(index+1));

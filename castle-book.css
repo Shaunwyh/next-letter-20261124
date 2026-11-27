@@ -87,3 +87,6 @@
 .story-cover-entry{min-width:0}.story-cover-entry .story-cover{width:100%}
 .story-resume{display:flex;align-items:center;min-height:44px;width:100%;font-size:10px;color:var(--accent);text-align:left;padding:0 3px;border-radius:8px}
 .story-resume:hover{background:var(--control-hover)}
+/* A real JPEG poster also gives basic link scrapers a supported first image. */
+.book-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;opacity:.8}
+.storybook[data-renderer=webgl] .book-poster,.storybook[data-renderer=fallback] .book-poster{display:none}

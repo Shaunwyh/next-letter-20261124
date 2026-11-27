@@ -1,3 +1,4 @@
+import {showDialog} from './castle-dialogs.js?v=castle-24';
 import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle-time.js?v=castle-19';
 
 (() => {
@@ -150,7 +151,7 @@ import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle
     const t=tracks.find(t=>t.id===id);if(t){select(t,ended);updateQueue();play();}
   }
   function openPlayer(push=true) {
-    if(!player.open){if(push&&!location.hash.startsWith('#listen='))history.pushState({castlePlayer:true},'','#listen='+encodeURIComponent(current.id));player.showModal();document.body.classList.add('player-open');}
+    if(!player.open){if(push&&!location.hash.startsWith('#listen='))history.pushState({castlePlayer:true},'','#listen='+encodeURIComponent(current.id));showDialog(player);document.body.classList.add('player-open');}
     requestAnimationFrame(()=>refreshReader(playbackPosition(),true));
   }
   player.addEventListener('close',() => {
@@ -178,10 +179,10 @@ import {isRecentUpload, formatLibraryTimestamp, RECENT_UPLOAD_MS} from './castle
   $('play-all').addEventListener('click',() => {const items=eligible();if(!items.length)return;queue=items.map(t=>t.id);mode='sequential';select(items[0],true);resetShuffle();updateMode();openPlayer();play();});
   $('shuffle-all').addEventListener('click',() => {const items=eligible();if(!items.length)return;queue=items.map(t=>t.id);mode='random';select(items[Math.floor(Math.random()*items.length)]);resetShuffle();updateMode();openPlayer();play();});
   $('open-player').addEventListener('click',()=>openPlayer());
-  for(const id of ['open-queue','player-queue'])$(id).addEventListener('click',()=>{if(player.open)player.close();$('section-title').scrollIntoView({behavior:motion.matches?'auto':'smooth'});});
+  for(const id of ['open-queue','player-queue'])$(id).addEventListener('click',()=>{const reveal=()=>$('section-title').scrollIntoView({behavior:motion.matches?'auto':'smooth'});if(player.open){player.addEventListener('close',()=>requestAnimationFrame(reveal),{once:true});player.close();}else reveal();});
   document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
   document.querySelectorAll('.sheet').forEach(sheet=>sheet.addEventListener('click',e=>{if(e.target===sheet){const r=sheet.getBoundingClientRect();if(e.clientY<r.top||e.clientY>r.bottom||e.clientX<r.left||e.clientX>r.right)sheet.close();}}));
-  function showSheet(id,opener) {$(id).showModal();opener.setAttribute('aria-expanded','true');}
+  function showSheet(id,opener) {showDialog($(id));opener.setAttribute('aria-expanded','true');}
   for(const [button,sheet] of [['sort','sort-sheet'],['speed','speed-sheet'],['mode','mode-sheet'],['volume-button','volume-sheet']]){$(button).addEventListener('click',()=>showSheet(sheet,$(button)));$(sheet).addEventListener('close',()=>{$(button).setAttribute('aria-expanded','false');$(button).focus({preventScroll:true});});}
   function updateSort() {const labels={newest:'最新在前',oldest:'最早在前',sequence:'按编号'};$('sort').innerHTML='<span>'+labels[sort]+'</span>'+icon('down');document.querySelectorAll('[data-sort]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sort===sort)));}
   document.querySelectorAll('[data-sort]').forEach(b=>b.addEventListener('click',()=>{sort=b.dataset.sort;updateSort();render();adoptQueue(eligible());persist();$('sort-sheet').close();}));

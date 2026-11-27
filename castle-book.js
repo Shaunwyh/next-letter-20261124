@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import {initialChapter} from './castle-book-ui.js?v=castle-23';
-import {BOOKS,SPREADS} from './castle-book-stories.js?v=castle-23';
-import {createStoryScene} from './castle-book-scenes.js?v=castle-23';
+import {initialChapter} from './castle-book-ui.js?v=castle-24';
+import {BOOKS,SPREADS} from './castle-book-stories.js?v=castle-24';
+import {createStoryScene} from './castle-book-scenes.js?v=castle-24';
 const canvas=document.querySelector('#book-canvas'),host=document.querySelector('#book-stage'),card=document.querySelector('#album-art');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let renderer;

@@ -1,0 +1,10 @@
+html.dialog-open{overflow:hidden;overscroll-behavior:none;scroll-behavior:auto}
+html.dialog-open body{position:fixed;top:var(--dialog-page-top,0px);left:0;right:0;width:100%;overflow:hidden;overscroll-behavior:none;padding-right:var(--dialog-scrollbar-gap,0px)}
+/* Freeze this sheet's position and height while the browser expands its toolbar. */
+.story-library.sheet{--story-frame-height:var(--dialog-frame-height,100svh);--story-sheet-height:min(740px,calc(var(--story-frame-height) - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));height:var(--story-sheet-height);max-height:none;top:max(calc(12px + env(safe-area-inset-top)),calc(var(--story-frame-height) - var(--story-sheet-height) - 16px - env(safe-area-inset-bottom)));bottom:auto;overflow:hidden;padding-bottom:12px;overscroll-behavior:none}
+.story-library.sheet[open]{display:flex;flex-direction:column}
+.story-library>.handle,.story-library>header{flex:none}
+.story-library>header{margin-bottom:14px}
+.story-library-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:4px 2px 14px;scroll-padding-block:8px}
+@media(max-width:899px){.player-sheet{height:var(--dialog-frame-height,100svh);max-height:var(--dialog-frame-height,100svh)}.player-visual{height:min(calc(var(--dialog-frame-height,100svh) * .24),200px)}}
+@media(max-width:360px){.player-visual{height:calc(var(--dialog-frame-height,100svh) * .22)}}
