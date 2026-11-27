@@ -1,14 +1,18 @@
 import * as THREE from './vendor/three.module.js';
-import './castle-book-ui.js?v=castle-22';
+import {initialChapter} from './castle-book-ui.js?v=castle-23';
+import {BOOKS,SPREADS} from './castle-book-stories.js?v=castle-23';
+import {createStoryScene} from './castle-book-scenes.js?v=castle-23';
 const canvas=document.querySelector('#book-canvas'),host=document.querySelector('#book-stage'),card=document.querySelector('#album-art');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 let renderer;
 try{renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'low-power'});}catch(e){fallback();}
-let current=card.dataset.bedtime==='true'?3:0,transition=null;
+let current=initialChapter,transition=null;
+function validTarget(target,switchStory=false){return Number.isInteger(target)&&target>=0&&target<SPREADS.length&&(switchStory||SPREADS[target].bookId===SPREADS[current].bookId);}
+function fallbackRequest(e){const target=e.detail.target??current+e.detail.direction;if(validTarget(target,e.detail.switchStory)){current=target;announce(current);}}
 function fallback(){canvas.hidden=true;document.querySelector('#book-fallback').hidden=false;card.dataset.renderer='fallback';}
 function announce(index){window.dispatchEvent(new CustomEvent('book-chapter',{detail:{index}}));}
 if(!renderer){
- window.addEventListener('book-request',e=>{current=Math.max(0,Math.min(3,e.detail.target??current+e.detail.direction));announce(current);});
+ window.addEventListener('book-request',fallbackRequest);
 }else{
 try{
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();fallback();});
@@ -31,18 +35,19 @@ function addStar(parent,x,y,z,r=.15){const m=cut(starShape(r),colors.gold,parent
 function addCloud(parent,x,y,z,s=1){const sh=new THREE.Shape();sh.moveTo(-.8,0);sh.bezierCurveTo(-1,.22,-.82,.55,-.54,.49);sh.bezierCurveTo(-.5,.93,.21,1.01,.36,.6);sh.bezierCurveTo(.74,.72,1,.28,.75,.02);sh.lineTo(-.8,0);const c=cut(sh,colors.white,parent,x,y,z,.035);c.scale.setScalar(s);return c;}
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 function pageTexture(index,side){
- const c=document.createElement('canvas');c.width=768;c.height=1024;const g=c.getContext('2d'),rand=seeded(120+index*9+side);g.fillStyle='#f5e7c7';g.fillRect(0,0,768,1024);
- const wash=g.createRadialGradient(430,430,10,430,430,600);wash.addColorStop(0,['#eee6c4','#e8e4c4','#efe0c2','#e5dfbe'][index]);wash.addColorStop(1,'#f6e9ca');g.fillStyle=wash;g.fillRect(0,0,768,1024);
+ const c=document.createElement('canvas');c.width=512;c.height=684;const g=c.getContext('2d');g.scale(2/3,2/3);const rand=seeded(120+index*9+side);g.fillStyle='#f5e7c7';g.fillRect(0,0,768,1024);
+ const wash=g.createRadialGradient(430,430,10,430,430,600);wash.addColorStop(0,SPREADS[index].wash);wash.addColorStop(1,'#f6e9ca');g.fillStyle=wash;g.fillRect(0,0,768,1024);
  for(let i=0;i<16000;i++){const v=rand();g.fillStyle=v>.5?'rgba(132,103,68,.035)':'rgba(255,255,240,.16)';g.fillRect(rand()*768,rand()*1024,rand()*2+.4,rand()*2+.4);}
  const edge=g.createLinearGradient(side?0:768,0,side?90:678,0);edge.addColorStop(0,'rgba(99,69,39,.18)');edge.addColorStop(1,'rgba(100,70,40,0)');g.fillStyle=edge;g.fillRect(0,0,768,1024);
  g.strokeStyle='#b8996355';g.lineWidth=1.4;g.strokeRect(45,45,678,930);g.strokeStyle='#c1a36b40';g.strokeRect(53,53,662,914);
- g.fillStyle='#a78b5d';g.textAlign=side?'right':'left';g.font='20px Georgia';g.fillText(String(index*2+side+1).padStart(2,'0'),side?704:63,942);
+ g.fillStyle='#a78b5d';g.textAlign=side?'right':'left';g.font='20px Georgia';g.fillText(String(SPREADS[index].pageIndex*2+side+1).padStart(2,'0'),side?704:63,942);
  g.font='12px Georgia';g.textAlign='center';g.fillStyle='#b09b74';g.fillText(side?'A LITTLE CASTLE, JUST FOR YOU':'LITTLE MOMENTS, TOGETHER',384,940);
  // Quiet botanical corner engraving, rather than an ornamental UI border.
  for(const [ox,oy,sx,sy] of [[82,100,1,1],[685,880,-1,-1]]){g.save();g.translate(ox,oy);g.scale(sx,sy);g.strokeStyle='#b6986266';g.lineWidth=1.2;g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(28,32,14,90);g.stroke();for(let k=0;k<5;k++){g.beginPath();g.ellipse(13+k*1.3,14+k*14,5,11,k%2?.7:-.6,0,Math.PI*2);g.stroke();}g.restore();}
  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t;
 }
-const pageMaps=Array.from({length:4},(_,i)=>[pageTexture(i,0),pageTexture(i,1)]);
+const pageMaps=[];function ensureMaps(i){return pageMaps[i]??(pageMaps[i]=[pageTexture(i,0),pageTexture(i,1)]);}
+ensureMaps(current);
 const book=new THREE.Group();scene.add(book);book.rotation.y=-.08;
 // Cloth binding, gilt edge, and individually offset sheets give the book real depth.
 mesh(new THREE.BoxGeometry(8.25,.14,4.88),paper('#aa7967'),book,0,.02,0);
@@ -91,7 +96,7 @@ const hugTexture=await loader.loadAsync('./assets/storybook/princess-hug.svg');h
 const catTexture=await loader.loadAsync('./assets/storybook/cat.svg');catTexture.colorSpace=THREE.SRGBColorSpace;catTexture.anisotropy=4;
 const alphaMasks=new Map();
 for(const t of [princessTexture,hugTexture,catTexture]){const c=document.createElement('canvas');c.width=256;c.height=256;c.getContext('2d').drawImage(t.image,0,0,256,256);alphaMasks.set(t,c.getContext('2d').getImageData(0,0,256,256).data);}
-function puppet(parent,actor,x,z,h){const p=popup(parent,x,z);const texture=actor==='cat'?catTexture:parent.userData.chapter===2?hugTexture:princessTexture;const ratio=actor==='cat'?460/590:460/700;const mat=paper('#fff9e9',{map:texture,transparent:true,alphaTest:.45,side:THREE.DoubleSide});
+function puppet(parent,actor,x,z,h){const p=popup(parent,x,z);const texture=actor==='cat'?catTexture:SPREADS[parent.userData.chapter].scene==='hug'?hugTexture:princessTexture;const ratio=actor==='cat'?460/590:460/700;const mat=paper('#fff9e9',{map:texture,transparent:true,alphaTest:.45,side:THREE.DoubleSide});
  const sprite=mesh(new THREE.PlaneGeometry(h*ratio,h),mat,p,0,h/2,.06);sprite.receiveShadow=false;
  const back=mesh(new THREE.PlaneGeometry(h*ratio,h),paper('#d5bc90',{map:texture,transparent:true,alphaTest:.45,side:THREE.DoubleSide}),p,.012,h/2,-.012);back.receiveShadow=false;
  p.rotation.y=.04;p.userData.actor=actor;paperBrace(p,h*.55,.34);p.userData.sprite=sprite;return p;
@@ -104,36 +109,39 @@ function sun(parent,night){const p=popup(parent,-2.45,-1.65);p.userData.decor=tr
 }
 const spreads=[];
 function buildSpread(i){
+ const page=SPREADS[i],kind=page.scene,original=['castle','star','hug','goodnight'].includes(kind);
  const g=new THREE.Group();book.add(g);g.visible=i===current;g.userData.chapter=i;const popups=[];
- hill(g,-.2,-1.8,7.3,1.02,i===3?colors.darkSage:colors.sage);
+ hill(g,-.2,-1.8,7.3,1.02,kind==='goodnight'?colors.darkSage:colors.sage);
  hill(g,1.6,-1.33,4.1,.64,colors.blush);hill(g,-2.3,-1.11,2.2,.56,colors.darkSage);
  const sky=sun(g,false),moon=sun(g,true);moon.visible=false;const cloud=popup(g,1.5,-1.8);addCloud(cloud,0,2.5,0,.65);addCloud(cloud,1.05,2.15,-.03,.36);cloud.userData.decor=true;
- const castle=cakeCastle(g,i===1?-2.1:-1.65,-.87,i===1?.70:.89);
- const princess=puppet(g,'princess',i===2?1.22:.86,.55,2.55);
- const cat=puppet(g,'cat',i===2?1.0:2.25,i===2?1.1:1.08,i===2?1.12:1.5);
- if(i===2){cat.position.y=1.05;cat.rotation.z=-.4;cat.userData.held=true;princess.rotation.z=-.06;
+ const castle=cakeCastle(g,original?(kind==='star'?-2.1:-1.65):-2.25,-.87,original?(kind==='star'?.70:.89):.67);
+ const princess=puppet(g,'princess',kind==='hug'?1.22:.86,.55,2.55);
+ const cat=puppet(g,'cat',kind==='hug'?1.0:2.25,kind==='hug'?1.1:1.08,kind==='hug'?1.12:1.5);
+ if(kind==='hug'){cat.position.y=1.05;cat.rotation.z=-.4;cat.userData.held=true;princess.rotation.z=-.06;
   const skin=paper('#edc7a4');
   const left=new THREE.Shape();left.moveTo(-.27,1.43);left.bezierCurveTo(-.5,1.2,-.4,1.02,-.13,.98);left.quadraticCurveTo(.01,1.0,-.04,1.11);left.bezierCurveTo(-.28,1.15,-.3,1.21,-.16,1.36);left.closePath();cut(left,colors.white,princess,0,0,.69,.025);const l=cut(left,skin,princess,0,.02,.72,.016);l.scale.set(.86,.97,1);
   const right=new THREE.Shape();right.moveTo(.26,1.43);right.bezierCurveTo(.54,1.19,.29,.89,-.14,1.02);right.quadraticCurveTo(-.2,1.1,-.11,1.15);right.bezierCurveTo(.14,1.08,.28,1.22,.17,1.36);right.closePath();cut(right,colors.white,princess,0,0,.74,.026);const r=cut(right,skin,princess,0,.02,.77,.016);r.scale.set(.88,.97,1);
  }
- if(i===1){cat.position.x=1.8;cat.position.y=.6;cat.rotation.z=-.15;princess.rotation.z=.1;}
- if(i===3){princess.position.x=.7;princess.rotation.z=.07;cat.position.x=1.6;cat.rotation.z=-.14;}
+ if(kind==='star'){cat.position.x=1.8;cat.position.y=.6;cat.rotation.z=-.15;princess.rotation.z=.1;}
+ if(kind==='goodnight'){princess.position.x=.7;princess.rotation.z=.07;cat.position.x=1.6;cat.rotation.z=-.14;}
  // Broad cream path visibly crosses the central fold.
  const path=shape([[-3,.2],[-2.8,.3],[-.7,.1],[.1,-.1],[1.1,-1.4],[1.4,-2],[2.1,-2],[1.7,-.8],[.7,.35],[-.6,.65]]);const pathmesh=cut(path,colors.white,g,0,.353,0,.008);pathmesh.rotation.x=-Math.PI/2;pathmesh.castShadow=false;
  const plants=[];for(const [x,z,h] of [[-3.3,.6,.85],[-2.9,.95,.7],[3.4,.4,.83],[3.05,.9,.66],[-3.4,-.2,.55]])plants.push(plant(g,x,z,h));
- for(const [x,z] of [[-2.4,1.5],[-2.15,1.6],[2.9,1.45]])flower(g,x,z,i===3?colors.ivory:colors.pink);
- const star=addStar(popup(g,.35,-.25),0,2.7,.02,i===1?.32:.15);star.parent.visible=i===1;star.userData.floating=true;
- const stars=[];for(const [x,y,z,r] of [[-1.1,2.9,-1.7,.12],[1.5,3.2,-1.8,.12],[2.7,2.9,-1.4,.09]]){const p=popup(g,x,z);addStar(p,0,y,0,r);p.visible=i===3||i===1;p.userData.star=true;stars.push(p);}
+ for(const [x,z] of [[-2.4,1.5],[-2.15,1.6],[2.9,1.45]])flower(g,x,z,kind==='goodnight'?colors.ivory:colors.pink);
+ const star=addStar(popup(g,.35,-.25),0,2.7,.02,kind==='star'?.32:.15);star.parent.visible=kind==='star';star.userData.floating=true;
+ const stars=[];for(const [x,y,z,r] of [[-1.1,2.9,-1.7,.12],[1.5,3.2,-1.8,.12],[2.7,2.9,-1.4,.09]]){const p=popup(g,x,z);addStar(p,0,y,0,r);p.visible=kind==='goodnight'||kind==='star';p.userData.star=true;stars.push(p);}
  // Tiny paper envelope and lantern are quiet, discoverable details.
- const envelope=popup(g,-2.9,1.58);cut(rectShape(.48,.32,.015),colors.white,envelope);line([[-.24,.32,.06],[0,.13,.06],[.24,.32,.06]],colors.gold,envelope,.008);envelope.rotation.z=.17;envelope.visible=i!==3;
- const lamp=popup(g,2.75,.30);cut(rectShape(.26,.41,.045),paper('#eecb80',{emissive:'#cc9a45',emissiveIntensity:.2}),lamp,0,.32,0);cut(rectShape(.34,.04,.01),colors.ink,lamp,0,.28,.03);line([[0,0,0],[0,.92,0],[.18,1,0],[.22,.76,0]],colors.ink,lamp,.015);lamp.visible=i===3;
+ const envelope=popup(g,-2.9,1.58);cut(rectShape(.48,.32,.015),colors.white,envelope);line([[-.24,.32,.06],[0,.13,.06],[.24,.32,.06]],colors.gold,envelope,.008);envelope.rotation.z=.17;envelope.visible=kind!=='goodnight';
+ const lamp=popup(g,2.75,.30);cut(rectShape(.26,.41,.045),paper('#eecb80',{emissive:'#cc9a45',emissiveIntensity:.2}),lamp,0,.32,0);cut(rectShape(.34,.04,.01),colors.ink,lamp,0,.28,.03);line([[0,0,0],[0,.92,0],[.18,1,0],[.22,.76,0]],colors.ink,lamp,.015);lamp.visible=kind==='goodnight';
  const blanket=popup(g,1.35,1.45);cut(rectShape(1.4,.65,.12),colors.pink,blanket,0,.22,0,.035);line([[-.58,.76,.055],[0,.81,.055],[.58,.76,.055]],colors.ivory,blanket,.025);for(let k=0;k<3;k++)line([[-.45+k*.45,.26,.06],[-.45+k*.45,.69,.06]],colors.blush,blanket,.006);blanket.visible=false;
+ const props=createStoryScene(kind,page.phase??0,{g,princess,cat,castle,popup,cut,shape,rectShape,mesh,paper,line,flatDisk,colors});
  g.children.forEach(c=>{if(c.userData.pop){c.userData.restY=c.position.y;c.userData.restRotX=c.rotation.x;c.userData.restRotZ=c.rotation.z;c.userData.restX=c.position.x;c.userData.restScale=c.scale.y;popups.push(c);}});
- const spread={g,popups,castle,princess,cat,cloud,sky,moon,star,stars,lamp,blanket};spreads.push(spread);return spread;
+ const spread={g,popups,castle,princess,cat,cloud,sky,moon,star,stars,lamp,blanket,props};spreads[i]=spread;return spread;
 }
-for(let i=0;i<4;i++)buildSpread(i);
+function ensureSpread(i){ensureMaps(i);return spreads[i]??buildSpread(i);}
+ensureSpread(current);
 const leafGeometry=new THREE.PlaneGeometry(4,4.55,36,3);
-const leafMaterial=paper('#fff7df',{map:pageMaps[1][1],side:THREE.DoubleSide});
+const leafMaterial=paper('#fff7df',{map:pageMaps[current][1],side:THREE.DoubleSide});
 const leaf=mesh(leafGeometry,leafMaterial,book);leaf.visible=false;leaf.castShadow=true;leaf.frustumCulled=false;
 function bendLeaf(p,direction){const pos=leafGeometry.attributes.position;const count=37,depthSteps=4,w=4;
  for(let j=0;j<depthSteps;j++)for(let i=0;i<count;i++){
@@ -145,18 +153,19 @@ function bendLeaf(p,direction){const pos=leafGeometry.attributes.position;const 
 }
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 function fold(spread,p){for(const pop of spread.popups){pop.scale.y=pop.userData.restScale*Math.max(.025,1-p);pop.rotation.x=pop.userData.restRotX-p*Math.PI*.43;}}
-let lastFrame=0,raf=0,visible=true,night=card.dataset.night==='true',bedtime=card.dataset.bedtime==='true',tap=null,identityTimer;
-function setAppearance(){const n=night||current===3;card.dataset.night=String(n);key.color.set(n?'#fff0c9':'#fff2d4');key.intensity=n?2.6:3.4;ambient.color.set(n?'#e6e6cb':'#fff8e6');ambient.groundColor.set(n?'#596146':'#a4886b');ambient.intensity=n?1.35:2;rim.color.set(n?'#d9c28e':'#f6d3b5');renderer.toneMappingExposure=n?.96:1.15;spreads.forEach((s,i)=>{s.sky.visible=!night&&i!==3;s.moon.visible=night||i===3;s.blanket.visible=bedtime&&i===3;s.stars.forEach(p=>p.visible=night||i===1||i===3);});}
+let lastFrame=0,raf=0,visible=true,night=document.documentElement.dataset.theme==='dark'||card.dataset.bedtime==='true',bedtime=card.dataset.bedtime==='true',tap=null,identityTimer;
+function setAppearance(){const n=night||SPREADS[current].night===true;card.dataset.night=String(n);key.color.set(n?'#fff0c9':'#fff2d4');key.intensity=n?2.6:3.4;ambient.color.set(n?'#e6e6cb':'#fff8e6');ambient.groundColor.set(n?'#596146':'#a4886b');ambient.intensity=n?1.35:2;rim.color.set(n?'#d9c28e':'#f6d3b5');renderer.toneMappingExposure=n?.96:1.15;spreads.forEach((s,i)=>{const page=SPREADS[i],isNight=night||page.night===true;s.sky.visible=!isNight&&(page.scene!=='rain'||page.phase===3);s.moon.visible=isNight;s.blanket.visible=bedtime&&page.scene==='goodnight';s.stars.forEach(p=>p.visible=isNight||page.scene==='star');});}
 function resize(){const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h,false);const height=Math.max(6.9,10.5/(w/h)),span=height*w/h;camera.left=-span/2;camera.right=span/2;camera.top=height/2;camera.bottom=-camera.top;camera.updateProjectionMatrix();render(performance.now());}
 new ResizeObserver(resize).observe(host);
 window.addEventListener('book-appearance',e=>{night=e.detail.night;bedtime=e.detail.bedtime;setAppearance();resize();});
-function turnTo(target){if(transition||target===current||target<0||target>3)return false;
+function turnTo(target,{switchStory=false}={}){if(transition||target===current||!validTarget(target,switchStory))return false;
+ ensureSpread(target);
  document.querySelector('#book-identity').hidden=true;tap=null;
- if(reduced.matches){spreads[current].g.visible=false;current=target;spreads[current].g.visible=true;leftPaper.material.map=pageMaps[current][0];rightPaper.material.map=pageMaps[current][1];setAppearance();announce(current);render(performance.now());return true;}
+ if(reduced.matches||!visible){spreads[current].g.visible=false;current=target;spreads[current].g.visible=true;leftPaper.material.map=pageMaps[current][0];rightPaper.material.map=pageMaps[current][1];setAppearance();announce(current);render(performance.now());return true;}
  transition={from:current,to:target,direction:target>current?1:-1,start:performance.now(),switched:false};
  leafMaterial.map=pageMaps[target][target>current?1:0];leafMaterial.needsUpdate=true;return true;
 }
-window.addEventListener('book-request',e=>turnTo(e.detail.target??current+e.detail.direction));
+window.addEventListener('book-request',e=>turnTo(e.detail.target??current+e.detail.direction,{switchStory:e.detail.switchStory}));
 function turnFrame(now){if(!transition)return;const tr=transition,p=Math.min(1,(now-tr.start)/1350);
  const outgoing=spreads[tr.from],incoming=spreads[tr.to];fold(outgoing,ease(Math.min(1,p/.29)));incoming.g.visible=p>.48;
  if(p>.48&&!tr.switched){tr.switched=true;outgoing.g.visible=false;current=tr.to;leftPaper.material.map=pageMaps[current][0];rightPaper.material.map=pageMaps[current][1];setAppearance();announce(current);}
@@ -182,12 +191,13 @@ let pointer=null;
 canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;pointer={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
 canvas.addEventListener('pointerup',e=>{if(!pointer||e.pointerId!==pointer.id)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.abs(dx)>35&&Math.abs(dx)>Math.abs(dy)*1.2)turnTo(current+(dx<0?1:-1));else if(Math.abs(dx)<12&&Math.abs(dy)<12)tapAt(e.clientX,e.clientY);pointer=null;});
 canvas.addEventListener('pointercancel',()=>pointer=null);
-host.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){turnTo(current+1);e.preventDefault();}if(e.key==='ArrowLeft'){turnTo(current-1);e.preventDefault();}});
+host.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){turnTo(current+1);e.preventDefault();e.stopPropagation();}if(e.key==='ArrowLeft'){turnTo(current-1);e.preventDefault();e.stopPropagation();}});
 host.tabIndex=0;
 function idle(now){const t=now*.001,s=spreads[current],still=reduced.matches||bedtime;if(transition)return;
  for(const p of s.popups){p.rotation.x=p.userData.restRotX;p.rotation.z=p.userData.restRotZ;p.position.x=p.userData.restX;p.position.y=p.userData.restY;p.scale.y=p.userData.restScale;}
  if(!still){s.princess.rotation.z=s.princess.userData.restRotZ+Math.sin(t*1.1)*.018;s.cat.rotation.z=s.cat.userData.restRotZ+Math.sin(t*1.3+.7)*.035;s.cloud.position.y=s.cloud.userData.restY+Math.sin(t*.55)*.04;s.star.position.y=2.7+Math.sin(t*1.5)*.06;}
  if(bedtime){s.princess.rotation.z=s.princess.userData.restRotZ+.05;s.cat.rotation.z=s.cat.userData.restRotZ-.09;s.cat.position.x=s.cat.userData.restX-.2;}
+ s.props.update?.(t,still);
  if(tap){const elapsed=(now-tap.start)/1000,duration=bedtime?1.9:1.5,p=Math.min(1,elapsed/duration),bounce=Math.sin(p*Math.PI),wiggle=Math.sin(p*Math.PI*4)*(1-p);
   if(!reduced.matches){if(tap.actor==='princess'){s.princess.rotation.z+=wiggle*(bedtime?.04:.13);s.princess.position.y+=bounce*(bedtime?.03:.12);}
   else if(tap.actor==='castle'){s.castle.scale.y=s.castle.userData.restScale*(1+Math.sin(p*Math.PI*3)*.07*(1-p));s.castle.rotation.z=wiggle*.035;}
@@ -199,9 +209,9 @@ function render(now){if(!visible||document.hidden)return;idle(now);turnFrame(now
 function loop(now){raf=requestAnimationFrame(loop);if(!reduced.matches&&now-lastFrame>1000/32)render(now);}
 new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)render(performance.now());},{threshold:0.01}).observe(host);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)render(performance.now());});
-reduced.addEventListener('change',()=>render(performance.now()));
+reduced.addEventListener('change',()=>{if(reduced.matches&&transition)turnFrame(transition.start+1350);render(performance.now());});
 setAppearance();resize();announce(current);card.dataset.renderer='webgl';requestAnimationFrame(loop);
-window.castleStorybook={get state(){return{chapter:current,busy:!!transition,night,bedtime,drawCalls:renderer.info.render.calls};},turnTo,render:()=>render(performance.now())};
-window.addEventListener('pagehide',e=>{if(e.persisted)return;cancelAnimationFrame(raf);renderer.dispose();scene.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){for(const m of [].concat(n.material))m.dispose();}});pageMaps.flat().forEach(t=>t.dispose());catTexture.dispose();princessTexture.dispose();hugTexture.dispose();});
-}catch(error){renderer.dispose();fallback();window.addEventListener('book-request',e=>{current=Math.max(0,Math.min(3,e.detail.target??current+e.detail.direction));announce(current);});announce(current);}
+window.castleStorybook={get state(){return{chapter:current,bookId:SPREADS[current].bookId,page:SPREADS[current].pageIndex,pageCount:BOOKS[SPREADS[current].bookIndex].pages.length,bookCount:BOOKS.length,busy:!!transition,night,bedtime,drawCalls:renderer.info.render.calls,loadedSpreads:spreads.filter(Boolean).length};},turnTo,render:()=>render(performance.now())};
+window.addEventListener('pagehide',e=>{if(e.persisted)return;cancelAnimationFrame(raf);renderer.dispose();scene.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){for(const m of [].concat(n.material))m.dispose();}});pageMaps.flat().filter(Boolean).forEach(t=>t.dispose());catTexture.dispose();princessTexture.dispose();hugTexture.dispose();});
+}catch(error){renderer.dispose();fallback();window.addEventListener('book-request',fallbackRequest);announce(current);}
 }

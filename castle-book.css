@@ -43,3 +43,47 @@
 @media(max-width:440px){.album-art.storybook{border-radius:19px}.book-topline{padding:19px 19px 0;font-size:8px}.book-edition{font-size:10px}.book-stage{height:268px}.storybook[data-bedtime=true] .book-stage{height:224px}.book-chapter-copy{padding:14px 22px 0;min-height:99px}.chapter-kicker{font-size:7px}.chapter-index{font-size:10px}.book-chapter-copy h2{font-size:23px;margin:8px 0 5px;letter-spacing:.025em;line-height:1.4}.book-chapter-copy p{font-size:11px;line-height:1.8;letter-spacing:0}.book-navigation{padding:5px 17px 14px}.book-bedtime{top:44px;left:18px;right:18px;padding:9px 5px}.book-bedtime p{font-size:11px}.book-bedtime>span{font-size:17px}.book-identity{font-size:11px;padding:9px 13px}}
 @media(max-width:350px){.book-topline{padding:18px 17px 0}.book-stage{height:244px}.storybook[data-bedtime=true] .book-stage{height:200px}.book-chapter-copy{padding-left:18px;padding-right:18px}.book-chapter-copy h2{font-size:21px}.book-chapter-copy p{font-size:10px}.book-bedtime p{font-size:10px}.book-navigation{padding-left:13px;padding-right:13px}}
 @media(prefers-reduced-motion:reduce){.storybook,.storybook *,.storybook *:before{animation:none!important;transition:none!important}}
+/* The bookshelf selects a whole story; the four dots belong only to its pages. */
+.book-switch{position:relative;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:5px 17px 0;padding:8px 5px;min-height:44px;width:calc(100% - 34px);text-align:left;border-radius:10px;color:#65513f}
+#book-current-title{font:500 17px/1.4 'Songti SC','Noto Serif SC',serif;letter-spacing:.06em}
+.book-switch-label{display:flex;align-items:center;gap:4px;font-size:10px;white-space:nowrap;color:#91765d}
+.book-switch-label svg{width:12px;height:12px;transform:rotate(90deg)}
+.book-switch:active{background:#997b5310;transform:none}
+.book-chapter-copy{min-height:128px;padding-top:6px}
+.book-chapter-copy h2{font-size:23px;line-height:1.45;margin-top:8px}
+.book-chapter-copy p{font-size:12px;line-height:1.85}
+.chapter-index{font:10px/1.5 Georgia,serif;font-variant-numeric:tabular-nums;letter-spacing:.14em}
+.book-ending{position:relative;z-index:4;padding:0 23px 20px;margin-top:-3px;color:#927c65;font-size:10px}
+.book-ending>span{display:block;padding-top:12px;border-top:1px solid #98795222;letter-spacing:.04em}
+.book-ending>div{display:flex;justify-content:space-between;margin-top:3px;gap:10px}
+.book-ending button{display:flex;align-items:center;justify-content:center;gap:3px;min-height:44px;padding:0 13px;border-radius:12px;font-size:11px;color:#795b43;background:#fff9e749}
+.book-ending button svg{width:12px;height:12px}
+.book-ending button:last-child{background:#a1755814}
+.storybook[data-night=true] .book-switch{color:#f1e0c1}
+.storybook[data-night=true] .book-switch-label,.storybook[data-night=true] .book-ending{color:#c5b998}
+.storybook[data-night=true] .book-ending>span{border-color:#c5b99833}
+.storybook[data-night=true] .book-ending button{color:#ead6ad;background:#efe7d514}
+.storybook[data-bedtime=true] .book-bedtime{top:94px}
+.story-library.sheet{width:min(520px,calc(100% - 24px));max-height:calc(92dvh - 12px);overflow-y:auto;overscroll-behavior:contain;padding:12px 22px 24px;scrollbar-width:thin}
+.story-library header{margin-bottom:18px;gap:10px}
+.story-library header p{color:var(--sub);font-size:10px;letter-spacing:.07em;margin:2px 0 6px}
+.story-library header h2{font:500 22px/1.4 'Songti SC','Noto Serif SC',serif;letter-spacing:.035em}
+.story-library-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px 16px}
+.story-cover{padding:0;text-align:left;min-width:0;display:flex;flex-direction:column;border-radius:14px;position:relative}
+.story-cover-art{position:relative;display:block;width:100%;aspect-ratio:1.43;border-radius:5px 13px 13px 5px;overflow:hidden;background:#ecdfc5;box-shadow:inset 5px 0 #9d765735,0 7px 15px -9px #6f503b55;margin-bottom:11px}
+.story-cover-art:after{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 4px 0 #8e71562b,inset 6px 0 #fff4d940,inset 0 0 0 1px #8e71560c;border-radius:inherit}
+.tone-sage .story-cover-art{background:#d9dfd1}.tone-peach .story-cover-art{background:#ecddce}.tone-olive .story-cover-art{background:#e2e4cb}
+.story-cover-art img{display:block;width:100%;height:100%;object-fit:contain;transform:scale(1.1)}
+.story-cover-number{position:absolute;left:10px;top:8px;color:#856d55;font:italic 12px Georgia,serif}
+.story-cover strong{font:500 16px/1.4 'Songti SC','Noto Serif SC',serif;color:var(--text);letter-spacing:.01em;padding:0 2px}
+.story-cover-summary{font-size:10px;line-height:1.7;color:var(--sub);margin:5px 0 7px;padding:0 2px;min-height:34px}
+.story-cover-progress{font-size:10px;line-height:1.6;color:var(--muted);padding:4px 8px;border-radius:6px;background:var(--soft)}
+.story-cover[aria-pressed=true] .story-cover-progress{background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent)}
+.story-cover[aria-pressed=true] .story-cover-art:before{content:'正在读';position:absolute;z-index:1;right:7px;top:7px;border-radius:5px;padding:3px 6px;font-size:9px;background:#fff8e9df;color:#866447}
+.story-library button:focus-visible,.storybook button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(hover:hover){.book-switch:hover{background:#997b5310}.story-cover:hover .story-cover-art{transform:translateY(-3px);box-shadow:inset 5px 0 #9d765735,0 12px 20px -10px #6f503b66}.story-cover-art{transition:transform .25s,box-shadow .25s}}
+@media(max-width:440px){.book-switch{margin-top:4px;margin-bottom:0}#book-current-title{font-size:16px}.book-switch-label{font-size:10px}.book-chapter-copy{min-height:126px;padding-top:5px}.book-chapter-copy h2{font-size:22px}.book-chapter-copy p{font-size:11px;line-height:1.9}.storybook[data-bedtime=true] .book-bedtime{top:89px}.book-ending{padding-left:22px;padding-right:22px}.story-library.sheet{padding-left:18px;padding-right:18px}.story-library-grid{gap:19px 13px}}
+@media(max-width:350px){#book-current-title{font-size:15px}.book-switch-label{font-size:9px}.book-chapter-copy{min-height:132px}.book-chapter-copy h2{font-size:20px}.book-chapter-copy p{font-size:11px}.story-library header h2{font-size:20px}.story-cover strong{font-size:14px}.story-cover-summary{font-size:10px;min-height:51px}.story-cover-number{font-size:10px;left:9px}.storybook[data-bedtime=true] .book-bedtime{top:88px}}
+.story-cover-entry{min-width:0}.story-cover-entry .story-cover{width:100%}
+.story-resume{display:flex;align-items:center;min-height:44px;width:100%;font-size:10px;color:var(--accent);text-align:left;padding:0 3px;border-radius:8px}
+.story-resume:hover{background:var(--control-hover)}
