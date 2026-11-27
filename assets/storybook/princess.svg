@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="700" viewBox="0 0 460 700">
+<defs>
+ <linearGradient id="hair" x2="1" y2="1"><stop stop-color="#80543d"/><stop offset="1" stop-color="#513b30"/></linearGradient>
+ <linearGradient id="dress" x1="0" y1="0" x2="1" y2=".4"><stop stop-color="#d4a094"/><stop offset=".52" stop-color="#c18d80"/><stop offset="1" stop-color="#ae776b"/></linearGradient>
+ <radialGradient id="face"><stop stop-color="#f5d9b5"/><stop offset="1" stop-color="#e8bd98"/></radialGradient>
+ <linearGradient id="gold" x2="1" y2="1"><stop stop-color="#e8cd8b"/><stop offset="1" stop-color="#bc9659"/></linearGradient>
+</defs>
+<!-- An illustrated paper puppet, edged like a hand-cut book insert. -->
+<g stroke="#fff7e4" stroke-width="15" stroke-linejoin="round" paint-order="stroke fill">
+ <path fill="url(#hair)" d="M110 210C97 96 155 76 229 80c96-3 139 58 124 161l10 164c-31 50-230 47-265 5z"/>
+ <path fill="url(#dress)" d="M188 355h87c4 113 47 166 76 264-32 39-201 40-239 0 29-108 71-172 76-264z"/>
+ <path fill="#f4e7cc" d="M170 296c31-13 89-13 120 0l17 62-37 35h-86l-32-38z"/>
+ <path fill="#edc7a4" d="M157 316c-6-10-20-13-28-1l-48 85c-8 19 12 28 25 11l49-64zM299 315c7-11 22-11 28 0l30 57 39-25c21-10 30 10 13 23l-52 41c-11 8-23 4-29-5l-35-54z"/>
+ <ellipse fill="url(#face)" cx="230" cy="218" rx="102" ry="111"/>
+ <path fill="url(#hair)" d="M125 213c-4-83 33-118 108-118 66 0 107 33 106 105-38 8-68-8-85-34-35 34-70 39-129 47z"/>
+ <path fill="url(#gold)" d="m178 107-10-56 35 22 29-41 27 40 37-22-12 58c-33 12-73 14-106-1z"/>
+</g>
+<path fill="#f8e2aa" d="m180 89 104-1-3 13c-37 11-66 10-101 0z"/>
+<circle cx="232" cy="84" r="10" fill="#bf7d70"/><circle cx="232" cy="83" r="4" fill="#ebc1a2"/>
+<g fill="#543a30"><ellipse cx="192" cy="229" rx="7" ry="10"/><ellipse cx="271" cy="229" rx="7" ry="10"/></g>
+<g fill="#fff5e4"><circle cx="190" cy="225" r="2.7"/><circle cx="269" cy="225" r="2.7"/></g>
+<g fill="#d99282" opacity=".66"><ellipse cx="167" cy="253" rx="17" ry="9"/><ellipse cx="294" cy="253" rx="17" ry="9"/></g>
+<path d="M220 267q11 12 24 0" fill="none" stroke="#b97a6a" stroke-width="4" stroke-linecap="round"/>
+<path d="M157 161c13-45 59-49 82-46M121 264l-3 89" fill="none" stroke="#b18a65" stroke-width="5" opacity=".4" stroke-linecap="round"/>
+<path fill="#fff3d9" d="M168 301q23-17 38-8l25 33 25-33q21-7 39 8l-14 26-31 5-18 27-22-27-31-4z"/>
+<path fill="url(#gold)" d="M183 385h91l3 12h-97z"/>
+<path d="m177 447-32 149m60-170-13 188m64-183 18 181m4-170 39 153" fill="none" stroke="#e8bdb0" stroke-width="5" opacity=".43"/>
+<path d="M123 613c62 22 156 22 216 0" fill="none" stroke="#e3c88d" stroke-width="5"/>
+<g fill="#edce96"><circle cx="161" cy="603" r="3"/><circle cx="196" cy="611" r="3"/><circle cx="233" cy="613" r="3"/><circle cx="270" cy="611" r="3"/><circle cx="306" cy="603" r="3"/></g>
+</svg>
